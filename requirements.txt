@@ -1,0 +1,4 @@
+streamlit
+google-genai
+lunar_python
+python-dotenv
