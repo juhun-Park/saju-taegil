@@ -120,7 +120,7 @@ h1,h2,h3,h4,h5 { color:#F1F5F9; }
 """, unsafe_allow_html=True)
 
 with st.sidebar:
-    st.markdown("### 東人 · 사주 원국 설정")
+    st.markdown("### 棟寅 · 사주 원국 설정")
     st.markdown("<span style='color:#94A3B8;font-size:0.85rem'>정밀한 분석을 위해 "
                 "대상자의 사주 정보를 입력하세요.</span>", unsafe_allow_html=True)
     st.write("")
@@ -177,8 +177,9 @@ with st.sidebar:
 
 st.markdown("<div style='display:flex;align-items:center;gap:12px'>"
             "<span style='display:inline-flex;align-items:center;justify-content:center;"
-            "width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#9E2B25,#7A1E1E);"
-            "border:1px solid rgba(232,200,116,0.7);color:#F5E6C8;font-weight:800;font-size:1.3rem'>東</span>"
+            "width:46px;height:46px;border-radius:8px;background:linear-gradient(135deg,#9E2B25,#7A1E1E);"
+            "border:1px solid rgba(232,200,116,0.7);color:#F5E6C8;font-weight:800;font-size:0.95rem;"
+            "line-height:1.0;letter-spacing:-1px'>棟寅</span>"
             "<h1 style='margin:0'>동인 · AI 사주 상담</h1></div>", unsafe_allow_html=True)
 st.markdown("<span style='color:#C5A05E;font-size:0.82rem'>● 명리 정밀 엔진 · 택일 · 시기운 · 적성</span>",
             unsafe_allow_html=True)
