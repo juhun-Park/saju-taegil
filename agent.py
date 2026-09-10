@@ -113,30 +113,32 @@ def run_career() -> dict:
         out["오행_적합직업"]=ohaeng_rec.get('suited_jobs',[])
     return out
 
-def run_daeun_check(purpose: str) -> dict:
-    """등록된 사용자의 '현재 대운(大運)'이 특정 목적에 유리한 시기인지 진단한다.
-    '지금 이직해도 될까', '요즘 창업하기 좋은 시기인가', '올해 결혼운은 어떤가' 처럼
-    '특정 날짜'가 아니라 '지금이 좋은 시기인지'를 묻는 질문에 사용한다.
-    12운성 강약과 대운의 십신을 결합해 계산하므로, 모델은 결과만 근거로 설명해야 한다.
+def run_timing_check(purpose: str, years: int = 5) -> dict:
+    """등록된 사용자의 대운(大運)+세운(歲運)을 향후 여러 해에 걸쳐 종합 진단해,
+    어느 해가 그 목적에 가장 유리한지 비교한다.
+    '지금 이직해도 될까', '앞으로 몇 년 중 언제 창업이 좋을까', '내년 결혼운은',
+    '향후 3년 이직 시기' 처럼 '특정 날짜'가 아니라 '어느 시기/어느 해가 좋은지'를
+    묻는 질문에 사용한다. 대운이 중간에 바뀌면 그 해 나이에 맞는 대운으로 자동 반영한다.
+    12운성 강약과 대운·세운의 십신을 결합해 계산하므로, 모델은 결과만 근거로 설명해야 한다.
     Args:
         purpose: 진단할 목적. 반드시 다음 중 하나: '합격/시험/지원', '이사/이동', '이직/취업',
                  '개업/창업', '계약/거래', '혼인/결혼'.
+        years: 비교할 햇수. 사용자가 기간을 말하면 그 값(예: 3, 10), 없으면 기본 5.
     Returns:
-        현재 대운, 십신, 12운성, 종합 판정(매우 유리~불리).
+        best(가장 유리한 해)와 timeline(연도별 대운·세운·판정) 목록.
     """
-    from taegil_engine import daeun_check
+    from taegil_engine import multiyear_check
     if purpose not in PURPOSE_RULES:
         return {"error": f"'{purpose}'은(는) 아직 지원하지 않는 목적입니다."}
     if not _PROFILE:
         return {"error": "사용자 사주가 아직 등록되지 않았습니다."}
-    cur=_PROFILE.get("daeun_current")
-    if not cur:
+    if not _PROFILE.get("daeun_list"):
         return {"error": "대운 정보가 없습니다. 성별을 포함해 원국을 다시 설정해야 합니다."}
-    res=daeun_check(_PROFILE['ilgan'], _PROFILE['ilji'], cur['ganzhi'], purpose)
+    years=max(1, min(int(years), 15))
+    res=multiyear_check(_PROFILE['ilgan'], _PROFILE.get('birth_year'),
+                        _PROFILE.get('age',0), _PROFILE['daeun_list'], purpose, years=years)
     if res is None:
         return {"error": "진단할 수 없습니다."}
-    res['대운_기간']=f"{cur['start']}~{cur['end']}세"
-    res['현재_나이']=_PROFILE.get('age')
     return res
 
 SYSTEM = None
@@ -158,7 +160,7 @@ def _system():
 
 [세 종류의 질문 — 도구를 구분해 사용]
 - (가) 택일 = 특정 일을 '언제(어느 날) 하면 좋은지'(이사·시험 날짜 등). → 목적과 시기가 파악되면 run_taegil 호출.
-- (나) 시기 진단 = '지금 해도 되는지, 요즘 시기가 어떤지'(지금 이직해도 될까, 창업하기 좋은 때인가 등). → 날짜가 아니라 현재 대운으로 판단. run_daeun_check 호출.
+- (나) 시기 진단 = '지금/앞으로 언제가 좋은 시기인지'(지금 이직해도 될까, 향후 몇 년 중 언제 창업이 좋을까, 내년 결혼운 등). → 날짜가 아니라 대운·세운으로 판단. run_timing_check 호출(사용자가 기간을 말하면 years에 반영, 없으면 5년).
 - (다) 적성 = '타고난 직업 성향/진로 방향'(내 적성, 어떤 일이 맞나). → run_career 호출.
 - 구분 팁: "며칠/언제가 좋아?"=날짜니까 (가). "지금/요즘/올해 ~해도 될까?"=시기니까 (나). "나는 뭐가 맞아?"=성향이니까 (다). 애매하면 날짜를 원하는지 시기를 원하는지 한 번 물어보세요.
 - 절대 스스로 간지·십신·신살·12운성·길흉·적성을 지어내지 마세요. 오직 도구가 돌려준 데이터만 근거로 씁니다.
@@ -183,7 +185,7 @@ def new_chat():
     from google.genai import types
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
     chat = client.chats.create(model=MODEL, config=types.GenerateContentConfig(
-        system_instruction=_system(), tools=[run_taegil, run_career, run_daeun_check], temperature=0.7,
+        system_instruction=_system(), tools=[run_taegil, run_career, run_timing_check], temperature=0.7,
         max_output_tokens=2048))  # 답변이 길어도 잘리지 않도록 넉넉히
     return client, chat
 
