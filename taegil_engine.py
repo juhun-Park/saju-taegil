@@ -117,6 +117,54 @@ def daeun_check(ilgan, wonguk_jiji, daeun_ganzhi, purpose):
             '12운성':_STAGE_KR.get(stage,stage),'강약점수':st,
             'total':score,'verdict':verdict,'reasons':reasons}
 
+def _score_ganzhi(ilgan, ganzhi, purpose):
+    """간지 하나(대운 또는 세운)를 목적에 대해 점수화. (십신 + 12운성)"""
+    r=PURPOSE_RULES[purpose]
+    g, j = ganzhi[0], ganzhi[1]
+    ss_gan=sipsin(ilgan, g); ss_ji=sipsin_of_jiji(ilgan, j)
+    sc=0; rs=[]
+    for ss in (ss_gan, ss_ji):
+        if ss in r['good_sipsin']: sc+=r['good_sipsin'][ss]; rs.append(f'+{ss}')
+        elif ss in r['bad_sipsin']: sc+=r['bad_sipsin'][ss]; rs.append(f'-{ss}')
+    stage=unseong(ilgan, j); st=_STAGE_STRENGTH.get(stage,0); sc+=st
+    return sc, ss_gan, ss_ji, _STAGE_KR.get(stage,stage), st, rs
+
+def _verdict(score):
+    return ('매우 유리' if score>=6 else '유리' if score>=2.5 else
+            '보통' if score>=-1.5 else '신중' if score>=-5 else '불리')
+
+def _daeun_at_age(daeun_list, age):
+    """특정 나이에 해당하는 대운 간지를 찾음(없으면 가장 가까운 것)."""
+    for d in daeun_list:
+        if d['start'] <= age <= d['end']: return d
+    return daeun_list[-1] if daeun_list else None
+
+def multiyear_check(ilgan, birth_year, cur_age, daeun_list, purpose,
+                    years=5, se_weight=1.2, dae_weight=1.0):
+    """향후 여러 해를 '대운(그 해 나이의 대운) + 세운(그 해 간지)'로 종합 점수화해 비교.
+    대운이 중간에 바뀌면 그 해 나이에 맞는 대운을 다시 찾아 반영."""
+    if purpose not in PURPOSE_RULES: return None
+    import datetime as _dt
+    this_year=_dt.date.today().year
+    rows=[]
+    for k in range(years):
+        yr=this_year+k
+        age=cur_age+k
+        # 그 해 세운 간지
+        se=pillars(_dt.date(yr,6,1))['year']   # 6월 기준이면 그 해 세운 확정
+        dae=_daeun_at_age(daeun_list, age)
+        se_sc, se_g, se_j, se_stage, se_st, se_rs = _score_ganzhi(ilgan, se, purpose)
+        dae_sc=0; dae_gz=None; dae_stage=None
+        if dae:
+            dae_sc, dg, dj, dae_stage, dae_st, dae_rs = _score_ganzhi(ilgan, dae['ganzhi'], purpose)
+            dae_gz=dae['ganzhi']
+        total = dae_weight*dae_sc + se_weight*se_sc
+        rows.append({'year':yr,'age':age,'sewoon':se,'sewoon_십신':f'{se_g}/{se_j}',
+                     'sewoon_12운성':se_stage,'daeun':dae_gz,'daeun_12운성':dae_stage,
+                     'total':round(total,1),'verdict':_verdict(total)})
+    ranked=sorted(rows, key=lambda x:-x['total'])
+    return {'purpose':purpose,'years':years,'best':ranked[0],'timeline':rows,'ranked':ranked}
+
 PURPOSE_RULES={
  '합격/시험/지원':{'good_sipsin':{'정인':3,'편인':2,'정관':3,'식신':1},
                 'bad_sipsin':{'상관':-3,'겁재':-2,'편관':-1},
