@@ -15,7 +15,8 @@ except Exception:
     pass
 import agent  # 대화형 에이전트
 
-st.set_page_config(page_title="AI 택일 상담", page_icon="🔮", layout="wide")
+st.set_page_config(page_title="AI 택일 상담", page_icon="🔮", layout="wide",
+                   initial_sidebar_state="expanded")
 
 # ---------- 커스텀 테마 (Deep Midnight Navy + Gold + Glass) ----------
 st.markdown("""
@@ -84,6 +85,29 @@ h1 { background:linear-gradient(135deg,#F59E0B,#E5C07B); -webkit-background-clip
 .qcard .t { color:#F1F5F9; font-weight:700; font-size:1.02rem; margin-bottom:4px; }
 .qcard .d { color:#94A3B8; font-size:0.86rem; line-height:1.45; }
 .chat-input-hint { color:#64748B; font-size:0.82rem; }
+
+/* 텍스트 대비 강제 (모바일에서 글자가 배경에 묻히는 문제 해결) */
+.stApp, .stApp p, .stApp span, .stApp label, .stApp li, .stApp div {
+  color:#E2E8F0;
+}
+.stMarkdown, [data-testid="stChatMessage"] * { color:#E9EEF7 !important; }
+label, .stCheckbox label, .stNumberInput label, .stDateInput label { color:#CBD5E1 !important; }
+h1,h2,h3,h4,h5 { color:#F1F5F9; }
+/* 위젯 내부 값 텍스트도 밝게 */
+.stNumberInput input, .stDateInput input, .stSelectbox div { color:#E2E8F0 !important; }
+
+/* 모바일 전용 보정 */
+@media (max-width: 768px) {
+  /* 사이드바 열림 버튼을 눈에 띄게 */
+  [data-testid="stSidebarCollapsedControl"] {
+    background:linear-gradient(135deg,#D97706,#B45309) !important;
+    border-radius:10px !important; padding:4px !important;
+  }
+  [data-testid="stSidebarCollapsedControl"] svg { color:#fff !important; }
+  /* 본문 글자 살짝 키워 가독성 */
+  .stApp p, .stApp li { font-size:0.98rem; line-height:1.6; }
+  h1 { font-size:1.5rem !important; }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -145,6 +169,10 @@ elif "chat" not in st.session_state:
     st.markdown("<span style='color:#94A3B8'>왼쪽에서 생년월일을 입력하고 "
                 "<b>원국 설정 / 새 상담 시작</b>을 누르면 상담이 시작됩니다.</span>",
                 unsafe_allow_html=True)
+    st.markdown("<div style='margin-top:8px;padding:10px 14px;border-radius:12px;"
+                "background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.30);"
+                "color:#E5C07B;font-size:0.88rem'>📱 휴대폰에서는 왼쪽 위 <b>‹ 화살표</b>를 "
+                "눌러 사주 입력창을 여세요.</div>", unsafe_allow_html=True)
     st.write("")
     cards = [
         ("취업 · 이직 · 시험 택일", "면접, 원서 접수, 이직 협상에 유리한 날"),
