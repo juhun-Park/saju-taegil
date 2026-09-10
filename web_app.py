@@ -120,6 +120,7 @@ with st.sidebar:
     bd = st.date_input("생년월일", value=datetime.date(1990, 1, 1),
                        min_value=datetime.date(1930, 1, 1), max_value=today,
                        format="YYYY-MM-DD")
+    gender_label = st.radio("성별", ["남성", "여성"], horizontal=True)
     know_time = st.checkbox("태어난 시각을 알아요", value=False)
     hour_val, min_val = None, 0
     if know_time:
@@ -129,10 +130,15 @@ with st.sidebar:
         st.caption("※ 진태양시(한국 −약32분) 자동 보정됩니다.")
     if st.button("원국 설정 / 새 상담 시작", type="primary", use_container_width=True):
         h = int(hour_val) if know_time else None
-        p = agent.pillars(bd, h, int(min_val))
+        gender = 1 if gender_label == "남성" else 0
+        p = agent.pillars(bd, h, int(min_val), gender=gender)
         st.session_state.profile = {"ganji": p["day"], "ilgan": p["day"][0],
                                     "ilji": p["day"][1], "year_pillar": p["year"],
-                                    "hour_pillar": p.get("hour")}
+                                    "hour_pillar": p.get("hour"),
+                                    "gender": "남성" if gender == 1 else "여성",
+                                    "daeun_current": p.get("daeun_current"),
+                                    "daeun_forward": p.get("daeun_forward"),
+                                    "age": p.get("age")}
         agent.set_profile(st.session_state.profile)
         try:
             st.session_state.gemini_client, st.session_state.chat = agent.new_chat()
@@ -146,9 +152,12 @@ with st.sidebar:
 
     if "profile" in st.session_state:
         pr = st.session_state.profile
-        line = f"원국: 일주 **{pr['ganji']}** (일간 {pr['ilgan']})"
+        line = f"원국: 일주 **{pr['ganji']}** (일간 {pr['ilgan']}) · {pr.get('gender','')}"
         if pr.get("hour_pillar"):
             line += f"\n\n시주: {pr['hour_pillar']}"
+        cur = pr.get("daeun_current")
+        if cur:
+            line += f"\n\n현재 대운: {cur['ganzhi']} ({cur['start']}~{cur['end']}세)"
         st.success(line)
     st.divider()
     chips = "".join(f"<span class='chip'>{p}</span>" for p in agent.PURPOSE_RULES.keys())
