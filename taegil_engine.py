@@ -44,17 +44,78 @@ def _lunar(dt, hour=None, minute=0, true_solar=True):
         return Solar.fromYmdHms(c.year,c.month,c.day,c.hour,c.minute,0).getLunar()
     return Solar.fromYmdHms(dt.year,dt.month,dt.day,hour,minute,0).getLunar()
 
-def pillars(dt, hour=None, minute=0, true_solar=True):
-    """절기 정확한 년/월/일(+시) 간지. hour/minute 주면 시주까지, 진태양시 보정 적용."""
+def pillars(dt, hour=None, minute=0, true_solar=True, gender=None, target_age=None):
+    """절기 정확한 년/월/일(+시) 간지. hour/minute 주면 시주까지, 진태양시 보정 적용.
+    gender(1=남,0=여) 주면 대운(大運)도 계산해 포함 (성별에 따라 순행/역행)."""
     lu=_lunar(dt,hour,minute,true_solar); ec=lu.getEightChar()
     out={'year':ec.getYear(),'month':ec.getMonth(),'day':ec.getDay(),
          'tianshen_luck':lu.getDayTianShenLuck(),
          'zhixing':lu.getZhiXing()}
     if hour is not None:
         out['hour']=ec.getTime()   # 시주(時柱)
+    if gender is not None:
+        yun=ec.getYun(1 if gender==1 else 0)
+        das=yun.getDaYun()
+        out['daeun_forward']=yun.isForward()
+        out['daeun_start_age']=das[1].getStartAge() if len(das)>1 else None
+        out['daeun_list']=[{'start':d.getStartAge(),'end':d.getEndAge(),'ganzhi':d.getGanZhi()}
+                           for d in das[1:11]]
+        # 현재(또는 지정 나이) 대운 찾기
+        age = target_age if target_age is not None else _age_now(dt)
+        cur=None
+        for d in das[1:]:
+            if d.getStartAge() <= age <= d.getEndAge():
+                cur={'start':d.getStartAge(),'end':d.getEndAge(),'ganzhi':d.getGanZhi()}; break
+        out['daeun_current']=cur
+        out['age']=age
     return out
 
+def _age_now(birth_date):
+    import datetime as _dt
+    t=_dt.date.today()
+    return t.year - birth_date.year - ((t.month,t.day)<(birth_date.month,birth_date.day))
+
 def lunar_day(dt): return _lunar(dt).getDay()  # 음력 날짜(손없는날 판정용)
+
+# ---------- 12운성(십이운성) & 대운 시기 진단 ----------
+CHANGSAENG_START={'甲':'亥','丙':'寅','戊':'寅','庚':'巳','壬':'申',
+                  '乙':'午','丁':'酉','己':'酉','辛':'子','癸':'卯'}
+_YANG=set('甲丙戊庚壬')
+_STAGES=['長生','沐浴','冠帶','建祿','帝旺','衰','病','死','墓','絶','胎','養']
+_STAGE_KR={'長生':'장생','沐浴':'목욕','冠帶':'관대','建祿':'건록','帝旺':'제왕','衰':'쇠',
+           '病':'병','死':'사','墓':'묘','絶':'절','胎':'태','養':'양'}
+_STAGE_STRENGTH={'長生':3,'沐浴':1,'冠帶':2,'建祿':4,'帝旺':5,'衰':1,'病':-1,'死':-3,
+                 '墓':-2,'絶':-3,'胎':0,'養':2}
+
+def unseong(ilgan, jiji):
+    """일간이 특정 지지에서 갖는 12운성 단계(양간 순행/음간 역행)."""
+    si=ZHI.index(CHANGSAENG_START[ilgan]); step=1 if ilgan in _YANG else -1
+    for k in range(12):
+        if ZHI[(si+step*k)%12]==jiji: return _STAGES[k]
+    return None
+
+def daeun_check(ilgan, wonguk_jiji, daeun_ganzhi, purpose):
+    """현재 대운이 특정 목적에 유리한 시기인지 진단.
+    (1) 대운 천간·지지의 십신이 목적의 길/흉 십신에 맞는지
+    (2) 대운 지지의 12운성 강약(일간 기준)
+    두 축을 합쳐 점수화."""
+    if purpose not in PURPOSE_RULES: return None
+    r=PURPOSE_RULES[purpose]
+    d_gan, d_ji = daeun_ganzhi[0], daeun_ganzhi[1]
+    ss_gan=sipsin(ilgan, d_gan); ss_ji=sipsin_of_jiji(ilgan, d_ji)
+    score=0; reasons=[]
+    for ss in (ss_gan, ss_ji):
+        if ss in r['good_sipsin']: score+=r['good_sipsin'][ss]; reasons.append(f'+{ss}')
+        elif ss in r['bad_sipsin']: score+=r['bad_sipsin'][ss]; reasons.append(f'-{ss}')
+    stage=unseong(ilgan, d_ji)
+    st=_STAGE_STRENGTH.get(stage,0)
+    score+=st
+    reasons.append(f'{_STAGE_KR.get(stage,stage)}({st:+d})')
+    verdict=('매우 유리' if score>=5 else '유리' if score>=2 else
+             '보통' if score>=-1 else '신중' if score>=-4 else '불리')
+    return {'daeun':daeun_ganzhi,'십신':f'{ss_gan}/{ss_ji}',
+            '12운성':_STAGE_KR.get(stage,stage),'강약점수':st,
+            'total':score,'verdict':verdict,'reasons':reasons}
 
 PURPOSE_RULES={
  '합격/시험/지원':{'good_sipsin':{'정인':3,'편인':2,'정관':3,'식신':1},
