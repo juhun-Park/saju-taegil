@@ -137,7 +137,9 @@ with st.sidebar:
                                     "hour_pillar": p.get("hour"),
                                     "gender": "남성" if gender == 1 else "여성",
                                     "daeun_current": p.get("daeun_current"),
+                                    "daeun_list": p.get("daeun_list"),
                                     "daeun_forward": p.get("daeun_forward"),
+                                    "birth_year": bd.year,
                                     "age": p.get("age")}
         agent.set_profile(st.session_state.profile)
         try:
