@@ -99,6 +99,10 @@ def run_career() -> dict:
     oh=ilgan_rec['key']['ohaeng'] if ilgan_rec else None
     ohaeng_rec=next((r for r in L['ohaeng']['records'] if r['key']['ohaeng']==oh), None)
     out={"일간":il, "일주":gj}
+    if _PROFILE.get("gender"): out["성별"]=_PROFILE["gender"]
+    if _PROFILE.get("daeun_current"):
+        c=_PROFILE["daeun_current"]
+        out["현재_대운"]=f"{c['ganzhi']} ({c['start']}~{c['end']}세)"
     if ilgan_rec:
         out["일간_본성"]=ilgan_rec.get('core_nature','')
         out["일간_직업군"]=ilgan_rec.get('career_types',[])
@@ -109,6 +113,32 @@ def run_career() -> dict:
         out["오행_적합직업"]=ohaeng_rec.get('suited_jobs',[])
     return out
 
+def run_daeun_check(purpose: str) -> dict:
+    """등록된 사용자의 '현재 대운(大運)'이 특정 목적에 유리한 시기인지 진단한다.
+    '지금 이직해도 될까', '요즘 창업하기 좋은 시기인가', '올해 결혼운은 어떤가' 처럼
+    '특정 날짜'가 아니라 '지금이 좋은 시기인지'를 묻는 질문에 사용한다.
+    12운성 강약과 대운의 십신을 결합해 계산하므로, 모델은 결과만 근거로 설명해야 한다.
+    Args:
+        purpose: 진단할 목적. 반드시 다음 중 하나: '합격/시험/지원', '이사/이동', '이직/취업',
+                 '개업/창업', '계약/거래', '혼인/결혼'.
+    Returns:
+        현재 대운, 십신, 12운성, 종합 판정(매우 유리~불리).
+    """
+    from taegil_engine import daeun_check
+    if purpose not in PURPOSE_RULES:
+        return {"error": f"'{purpose}'은(는) 아직 지원하지 않는 목적입니다."}
+    if not _PROFILE:
+        return {"error": "사용자 사주가 아직 등록되지 않았습니다."}
+    cur=_PROFILE.get("daeun_current")
+    if not cur:
+        return {"error": "대운 정보가 없습니다. 성별을 포함해 원국을 다시 설정해야 합니다."}
+    res=daeun_check(_PROFILE['ilgan'], _PROFILE['ilji'], cur['ganzhi'], purpose)
+    if res is None:
+        return {"error": "진단할 수 없습니다."}
+    res['대운_기간']=f"{cur['start']}~{cur['end']}세"
+    res['현재_나이']=_PROFILE.get('age')
+    return res
+
 SYSTEM = None
 def _system():
     today = datetime.date.today().isoformat()
@@ -117,7 +147,8 @@ def _system():
 
 [역할과 태도]
 - 손님을 편안하게 대하는 진짜 상담사처럼 대화합니다. 기계적인 안내가 아니라, 공감하고 배려하는 말투를 씁니다.
-- 사용자의 사주(원국)는 이미 시스템에 등록되어 있습니다. 생년월일을 다시 묻지 마세요.
+- 사용자의 사주(원국)는 이미 시스템에 등록되어 있습니다. 생년월일이나 성별을 다시 묻지 마세요.
+- 원국에는 성별과 현재 대운(大運, 10년 단위 큰 흐름)이 포함될 수 있습니다. 대운 정보가 있으면 상담의 배경으로 자연스럽게 참고해 설명에 깊이를 더하세요(단, 도구가 준 대운 값만 쓰고 지어내지 마세요).
 
 [정보 수집 — 대화로 자연스럽게]
 - 택일을 하려면 (1)목적 (2)대략의 시기가 필요합니다.
@@ -125,11 +156,12 @@ def _system():
   예) "이사를 준비하시는군요! 설레기도 하고 신경 쓸 것도 많으시죠. 혹시 언제쯤 옮기실 생각이신가요?"
 - 시기가 막연하면("곧", "가을쯤") 그대로 도구에 넉넉한 기간으로 넘겨도 됩니다.
 
-[두 종류의 질문 — 도구를 구분해 사용]
-- (가) 택일 질문 = 특정 일을 '언제 하면 좋은지'(이사·시험·이직 날짜 등). → 목적과 시기가 파악되면 run_taegil 호출.
-- (나) 적성 질문 = '타고난 직업 성향/진로 방향'(내 적성, 어떤 일이 맞나, 사업가형인지 등). → 시기가 필요 없고, run_career 호출.
-- 사용자의 말이 '언제'에 관한 것이면 (가), '무엇/어떤 성향'에 관한 것이면 (나)로 판단하세요. 애매하면 무엇을 원하는지 한 번 물어보세요.
-- 절대 스스로 간지·십신·신살·길흉·적성을 지어내지 마세요. 오직 도구가 돌려준 데이터만 근거로 씁니다.
+[세 종류의 질문 — 도구를 구분해 사용]
+- (가) 택일 = 특정 일을 '언제(어느 날) 하면 좋은지'(이사·시험 날짜 등). → 목적과 시기가 파악되면 run_taegil 호출.
+- (나) 시기 진단 = '지금 해도 되는지, 요즘 시기가 어떤지'(지금 이직해도 될까, 창업하기 좋은 때인가 등). → 날짜가 아니라 현재 대운으로 판단. run_daeun_check 호출.
+- (다) 적성 = '타고난 직업 성향/진로 방향'(내 적성, 어떤 일이 맞나). → run_career 호출.
+- 구분 팁: "며칠/언제가 좋아?"=날짜니까 (가). "지금/요즘/올해 ~해도 될까?"=시기니까 (나). "나는 뭐가 맞아?"=성향이니까 (다). 애매하면 날짜를 원하는지 시기를 원하는지 한 번 물어보세요.
+- 절대 스스로 간지·십신·신살·12운성·길흉·적성을 지어내지 마세요. 오직 도구가 돌려준 데이터만 근거로 씁니다.
 
 [답변 구성 — 구체적·풍부·명확하게]
 도구 결과를 받으면 다음 구조로, 넉넉하고 정성껏 설명하세요:
@@ -151,7 +183,7 @@ def new_chat():
     from google.genai import types
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
     chat = client.chats.create(model=MODEL, config=types.GenerateContentConfig(
-        system_instruction=_system(), tools=[run_taegil, run_career], temperature=0.7,
+        system_instruction=_system(), tools=[run_taegil, run_career, run_daeun_check], temperature=0.7,
         max_output_tokens=2048))  # 답변이 길어도 잘리지 않도록 넉넉히
     return client, chat
 
