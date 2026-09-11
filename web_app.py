@@ -23,6 +23,38 @@ st.markdown("""
 <style>
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
 
+/* ===== 테마 고정: 라이트 모드에서도 항상 다크로 ===== */
+:root, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"],
+[data-testid="stMain"], .main, .block-container {
+  background-color:#0A0D14 !important;
+  color:#E7E2D6 !important;
+}
+[data-testid="stHeader"]{ background:transparent !important; }
+/* 모든 텍스트 요소 밝은색 강제 (두 테마 공통) */
+.stApp, .stApp *, [data-testid="stSidebar"] * {
+  color:#E7E2D6;
+}
+.stApp p, .stApp span, .stApp li, .stApp label, .stApp div,
+.stMarkdown, .stMarkdown * { color:#E7E2D6 !important; }
+h1,h2,h3,h4,h5,h6 { color:#F1ECE0 !important; }
+/* 입력 위젯 내부 텍스트/배경도 다크 고정 */
+input, textarea, select, .stNumberInput input, .stDateInput input,
+[data-baseweb="input"] input, [data-baseweb="select"] * {
+  color:#E7E2D6 !important;
+  background-color:rgba(255,255,255,0.04) !important;
+}
+/* 라디오/체크박스 라벨 */
+[data-testid="stRadio"] label, [data-testid="stCheckbox"] label,
+[data-baseweb="radio"] *, [data-baseweb="checkbox"] * { color:#D8D2C4 !important; }
+/* 드롭다운 팝업(라이트에서 흰 배경 뜨는 것) 다크로 */
+[data-baseweb="popover"], [data-baseweb="menu"], [role="listbox"] {
+  background-color:#14181F !important; color:#E7E2D6 !important;
+}
+[role="option"] { color:#E7E2D6 !important; }
+/* 캘린더 팝업 */
+[data-baseweb="calendar"] { background:#14181F !important; color:#E7E2D6 !important; }
+[data-baseweb="calendar"] * { color:#E7E2D6 !important; }
+
 /* 전체 배경 — 먹빛 네이비 + 오행 은은한 글로우 + 미세 격자 문양 */
 .stApp {
   background:
