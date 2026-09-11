@@ -159,7 +159,9 @@ with st.sidebar:
                                     "daeun_forward": p.get("daeun_forward"),
                                     "birth_year": bd_solar.year,
                                     "age": p.get("age"),
-                                    "strength": p.get("strength")}
+                                    "strength": p.get("strength"),
+                                    "_birth": (bd_solar.year, bd_solar.month, bd_solar.day,
+                                               h, int(min_val))}
         agent.set_profile(st.session_state.profile)
         try:
             st.session_state.gemini_client, st.session_state.chat = agent.new_chat()
