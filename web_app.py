@@ -198,9 +198,13 @@ with st.sidebar:
         try:
             st.session_state.gemini_client, st.session_state.chat = agent.new_chat()
             st.session_state.messages = [{"role": "assistant",
-                "content": "안녕하세요, 동인입니다. 🀄\n\n좋은 날짜를 잡는 택일, 지금·앞으로의 시기운, "
-                           "타고난 적성까지 편하게 여쭤보세요. 예를 들어 \"10월에 이사 좋은 날?\", "
-                           "\"내년에 이직해도 될까?\", \"내 적성이 뭐야?\"처럼요."}]
+                "content": "안녕하세요, 동인입니다. 🀄\n\n무엇이든 편하게 여쭤보세요.\n\n"
+                           "📅 택일 — \"10월에 이사 좋은 날?\"\n"
+                           "🕰 시기운 — \"내년에 이직해도 될까?\"\n"
+                           "🧭 적성 — \"내 적성이 뭐야?\"\n"
+                           "🩺 건강운 — \"내 건강운 봐줘\"\n"
+                           "🪞 성격 — \"나는 어떤 사람이야?\"\n"
+                           "💞 궁합 — \"○○년생이랑 궁합 어때?\""}]
         except Exception as e:
             st.session_state.chat = None
             st.session_state.messages = []
@@ -220,8 +224,9 @@ with st.sidebar:
             line += f"\n\n{stg.get('판정','')} · 용신 {yong}"
         st.success(line)
     st.divider()
-    chips = "".join(f"<span class='chip'>{p}</span>" for p in agent.PURPOSE_RULES.keys())
-    st.markdown("<div style='color:#94A3B8;font-size:0.8rem;margin-bottom:6px'>지원 상담 도메인</div>"
+    feats = ["📅 택일", "🕰 시기운", "🧭 적성", "🩺 건강운", "🪞 성격", "💞 궁합"]
+    chips = "".join(f"<span class='chip'>{f}</span>" for f in feats)
+    st.markdown("<div style='color:#94A3B8;font-size:0.8rem;margin-bottom:6px'>볼 수 있는 사주</div>"
                 + chips, unsafe_allow_html=True)
 
 st.markdown("<div style='display:flex;align-items:center;gap:12px'>"
@@ -237,7 +242,7 @@ st.write("")
 if not os.environ.get("GEMINI_API_KEY"):
     st.error("GEMINI_API_KEY가 없습니다. API_KEY.env 파일을 확인하고 이 폴더에서 실행했는지 보세요.")
 elif "chat" not in st.session_state:
-    st.markdown("#### 생년월일을 입력하면, 날짜 · 시기운 · 적성을 함께 봐드립니다")
+    st.markdown("#### 생년월일을 입력하면, 여섯 가지 사주를 봐드립니다")
     st.markdown("<span style='color:#94A3B8'>왼쪽에서 생년월일과 성별을 입력하고 "
                 "<b>원국 설정 / 새 상담 시작</b>을 누르면 상담이 시작됩니다.</span>",
                 unsafe_allow_html=True)
@@ -247,16 +252,20 @@ elif "chat" not in st.session_state:
                 "눌러 사주 입력창을 여세요.</div>", unsafe_allow_html=True)
     st.write("")
     cards = [
-        ("📅 길일 택일", "이사·시험·계약·개업 등 좋은 날짜를 콕 집어 추천"),
-        ("🕰 시기운 진단", "지금·앞으로 몇 년 중 언제가 유리한지 대운·세운으로 분석"),
-        ("🧭 타고난 적성", "일간·일주로 보는 성향과 잘 맞는 진로·직업"),
-        ("💬 편하게 대화", "\"내년에 이직해도 될까?\"처럼 말하듯 물어보세요"),
+        ("📅 길일 택일", "이사·시험·계약·개업 등 좋은 날짜를 콕 집어 추천", "\"10월에 이사 좋은 날?\""),
+        ("🕰 시기운 진단", "대운·세운으로 앞으로 언제가 유리한지 분석", "\"내년에 이직해도 될까?\""),
+        ("🧭 타고난 적성", "일간·일주로 보는 성향과 잘 맞는 진로", "\"내 적성이 뭐야?\""),
+        ("🩺 건강운·체질", "오행 균형으로 보는 약한 장부와 생활 습관", "\"내 건강운 봐줘\""),
+        ("🪞 성격·기질", "타고난 성격과 강점, 마음의 결", "\"나는 어떤 사람이야?\""),
+        ("💞 궁합", "두 사람 사주로 보는 인연과 조화", "\"○년생이랑 궁합 어때?\""),
     ]
     cols = st.columns(2)
-    for i, (t, d) in enumerate(cards):
+    for i, (t, d, ex) in enumerate(cards):
         with cols[i % 2]:
             st.markdown(f"<div class='qcard'><div class='t'>{t}</div>"
-                        f"<div class='d'>{d}</div></div>", unsafe_allow_html=True)
+                        f"<div class='d'>{d}</div>"
+                        f"<div style='margin-top:8px;color:#C5A05E;font-size:0.8rem'>{ex}</div></div>",
+                        unsafe_allow_html=True)
 else:
     agent.set_profile(st.session_state.profile)
     for m in st.session_state.messages:
