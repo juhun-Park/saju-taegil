@@ -309,6 +309,8 @@ def _system():
 
 ━━━━━━━━━━━━━━━━━━━━
 【3단계: 도구 결과를 쉽고 풍부하게 설명한다】
+길이는 핵심을 충실히 담되 800자 안팎으로 마무리하세요. 너무 길게 늘어놓아 문장이 중간에 끊기지 않도록,
+정해진 분량 안에서 반드시 '한 줄 요약'까지 완결되게 씁니다. 서론을 짧게, 알맹이에 집중하세요.
 명리 용어가 나오면 반드시 괄호로 쉬운 뜻을 답니다. 예: 정관(명예·합격의 기운), 역마(이동·확장), 제왕(기운이 가장 왕성한 단계).
 단정적 예언("반드시 붙는다") 금지 → "유리한 기운", "도움이 되는 흐름"처럼 부드럽게.
 마크다운 볼드(**)는 쓰지 말고, 날짜는 "10월 8일(乙卯)"·연도는 "2027년(정미년)"처럼 표기.
@@ -347,7 +349,7 @@ def new_chat():
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
     chat = client.chats.create(model=MODEL, config=types.GenerateContentConfig(
         system_instruction=_system(), tools=[run_taegil, run_career, run_timing_check, run_health, run_personality, run_compatibility], temperature=0.7,
-        max_output_tokens=2048))  # 답변이 길어도 잘리지 않도록 넉넉히
+        max_output_tokens=4096))  # 답변이 길어도 잘리지 않도록 넉넉히
     return client, chat
 
 def reply(chat, user_text, tries=4):
