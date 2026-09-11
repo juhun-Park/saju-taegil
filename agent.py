@@ -10,7 +10,7 @@ try:
     load_dotenv("API_KEY.env"); load_dotenv()
 except ImportError:
     pass
-from taegil_engine import pillars, score_day, PURPOSE_RULES
+from taegil_engine import pillars, score_day, PURPOSE_RULES, solar_from_lunar
 
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-lite-latest")
 
@@ -53,7 +53,8 @@ def run_taegil(purpose: str, date_start: str, date_end: str) -> dict:
     s = _to_date(date_start, today); e = _to_date(date_end, today+datetime.timedelta(days=90))
     if e < s: s, e = today, today+datetime.timedelta(days=90)
     days = min((e-s).days+1, 120)
-    res = [score_day(s+datetime.timedelta(days=i), il, ji, purpose) for i in range(days)]
+    yongsin = (_PROFILE.get('strength') or {}).get('용신방향')
+    res = [score_day(s+datetime.timedelta(days=i), il, ji, purpose, yongsin=yongsin) for i in range(days)]
     res.sort(key=lambda x: -x['score'])
     def pack(r):
         ss = ' / '.join(f"{x}({SIPSIN_MEANING.get(x,'')})" for x in r['십신'].split('/'))
@@ -61,7 +62,9 @@ def run_taegil(purpose: str, date_start: str, date_end: str) -> dict:
                 "십신": ss, "신살": f"{r['신살']}({SINSAL_MEANING.get(r['신살'],'')})",
                 "길흉일": ('길일(황도)' if r['황흑도']=='吉' else '흉일(흑도)' if r['황흑도']=='凶' else '보통'),
                 "손없는날": r['손없는날'], "점수": r['score']}
+    st_info = _PROFILE.get('strength') or {}
     return {"purpose": purpose, "기간": f"{s} ~ {e}",
+            "신강약": st_info.get('판정'), "용신방향": st_info.get('용신방향'),
             "top_days": [pack(r) for r in res[:3]],
             "avoid_days": [pack(r) for r in res[-2:]]}
 
@@ -100,6 +103,9 @@ def run_career() -> dict:
     ohaeng_rec=next((r for r in L['ohaeng']['records'] if r['key']['ohaeng']==oh), None)
     out={"일간":il, "일주":gj}
     if _PROFILE.get("gender"): out["성별"]=_PROFILE["gender"]
+    if _PROFILE.get("strength"):
+        st=_PROFILE["strength"]
+        out["신강약"]=st.get("판정"); out["용신방향"]=st.get("용신방향")
     if _PROFILE.get("daeun_current"):
         c=_PROFILE["daeun_current"]
         out["현재_대운"]=f"{c['ganzhi']} ({c['start']}~{c['end']}세)"
@@ -151,7 +157,8 @@ def _system():
 ━━━━━━━━━━━━━━━━━━━━
 【기본 태도】
 - 진짜 상담사처럼 공감하고 배려하는 존댓말로 대화합니다. 기계적 안내 금지.
-- 사용자의 사주(원국)·성별·현재 대운은 이미 등록돼 있습니다. 생년월일·성별을 다시 묻지 마세요.
+- 사용자의 사주(원국)·성별·현재 대운·신강약(용신)은 이미 등록돼 있습니다. 생년월일·성별을 다시 묻지 마세요.
+- 도구 결과에 '신강약'과 '용신방향'이 있으면, 그 사람에게 어떤 기운(십신)이 이로운지 배경으로 삼아 설명에 깊이를 더하세요. 예: 신약한 분께는 돕는 기운(인성·비겁)이 드는 날/시기가 더 유리하다고 풀어주기. (단, 도구가 준 값만 쓰고 지어내지 마세요.)
 - 가장 중요한 규칙: 간지·십신·신살·12운성·대운·세운·길흉·적성을 절대 스스로 지어내지 마세요.
   이 값들은 반드시 아래 도구를 호출해서 얻고, 도구가 돌려준 데이터만 근거로 설명합니다.
   (당신은 '계산기'가 아니라 '통역사'입니다. 계산은 도구가, 당신은 따뜻한 설명만.)
