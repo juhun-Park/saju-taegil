@@ -53,6 +53,7 @@ def pillars(dt, hour=None, minute=0, true_solar=True, gender=None, target_age=No
          'zhixing':lu.getZhiXing()}
     if hour is not None:
         out['hour']=ec.getTime()   # 시주(時柱)
+    out['strength']=analyze_strength(ec)   # 신강/신약 + 용신방향
     if gender is not None:
         yun=ec.getYun(1 if gender==1 else 0)
         das=yun.getDaYun()
@@ -74,6 +75,67 @@ def _age_now(birth_date):
     import datetime as _dt
     t=_dt.date.today()
     return t.year - birth_date.year - ((t.month,t.day)<(birth_date.month,birth_date.day))
+
+def solar_from_lunar(year, month, day, leap=False):
+    """음력 → 양력 date 변환. leap=True면 윤달."""
+    from lunar_python import Lunar
+    import datetime as _dt
+    m = -month if leap else month
+    s = Lunar.fromYmd(year, m, day).getSolar()
+    return _dt.date(s.getYear(), s.getMonth(), s.getDay())
+
+# ---------- 신강/신약 판정 (억부) ----------
+_JIJI_HIDDEN={'子':[('癸',1.0)],'丑':[('己',0.6),('癸',0.2),('辛',0.2)],
+ '寅':[('甲',0.6),('丙',0.3),('戊',0.1)],'卯':[('乙',1.0)],
+ '辰':[('戊',0.6),('乙',0.2),('癸',0.2)],'巳':[('丙',0.6),('庚',0.2),('戊',0.2)],
+ '午':[('丁',0.7),('己',0.3)],'未':[('己',0.6),('丁',0.2),('乙',0.2)],
+ '申':[('庚',0.6),('壬',0.2),('戊',0.2)],'酉':[('辛',1.0)],
+ '戌':[('戊',0.6),('辛',0.2),('丁',0.2)],'亥':[('壬',0.7),('甲',0.3)]}
+_MONTH_WANG={'寅':'木','卯':'木','巳':'火','午':'火','申':'金','酉':'金','亥':'水','子':'水',
+             '辰':'土','戌':'土','丑':'土','未':'土'}
+
+def _supports(day_oh, other_oh):
+    """other 오행이 일간을 돕는가: 같은 오행(비겁) 또는 나를 생함(인성)."""
+    if other_oh==day_oh: return True
+    if SAENG[other_oh]==day_oh: return True
+    return False
+
+def analyze_strength(ec):
+    """팔자로 신강/신약을 억부식으로 판정(득령+득세)."""
+    day_gan=ec.getDay()[0]; day_oh=GAN_OH[day_gan]
+    pillars_gz=[ec.getYear(),ec.getMonth(),ec.getDay(),ec.getTime()]
+    month_ji=ec.getMonth()[1]
+    deukryeong=_supports(day_oh, _MONTH_WANG[month_ji])
+    support=0.0; total=0.0
+    for gz in pillars_gz:            # 천간(일간 제외)
+        g=gz[0]
+        if g!=day_gan:
+            total+=1.0
+            if _supports(day_oh, GAN_OH[g]): support+=1.0
+    for gz in pillars_gz:            # 지장간
+        for hg,w in _JIJI_HIDDEN[gz[1]]:
+            total+=w
+            if _supports(day_oh, GAN_OH[hg]): support+=w
+    ratio = support/total if total else 0
+    adj = ratio + (0.12 if deukryeong else -0.12)
+    if adj>=0.62: level='매우 신강'
+    elif adj>=0.50: level='신강'
+    elif adj>=0.40: level='중화(신강 쪽)'
+    elif adj>=0.30: level='중화(신약 쪽)'
+    elif adj>=0.20: level='신약'
+    else: level='매우 신약'
+    is_strong = adj>=0.45
+    if is_strong:
+        yongsin=['식상','재성','관성']; help_type='기운을 덜어내고 조절하는'
+    else:
+        yongsin=['인성','비겁']; help_type='기운을 북돋우고 돕는'
+    return {'일간':day_gan,'일간오행':day_oh,'득령':deukryeong,
+            '세력비':round(ratio,2),'판정':level,'is_strong':is_strong,
+            '용신방향':yongsin,'용신설명':help_type}
+
+def strength_for(dt, hour=None, minute=0, true_solar=True):
+    ec=_lunar(dt,hour,minute,true_solar).getEightChar()
+    return analyze_strength(ec)
 
 def lunar_day(dt): return _lunar(dt).getDay()  # 음력 날짜(손없는날 판정용)
 
@@ -196,7 +258,13 @@ PURPOSE_RULES={
             'desc':'혼인은 안정의 정관·정재와 화합의 기운을 반기고, 구설·도화(년살)·손재를 꺼림 (전통 혼인택일은 더 복잡하니 참고용)'},
 }
 
-def score_day(dt, wonguk_ilgan, wonguk_jiji, purpose):
+def _sipsin_group(ss):
+    """십신을 5그룹으로: 비겁/식상/재성/관성/인성."""
+    return {'비견':'비겁','겁재':'비겁','식신':'식상','상관':'식상',
+            '편재':'재성','정재':'재성','편관':'관성','정관':'관성',
+            '편인':'인성','정인':'인성'}.get(ss)
+
+def score_day(dt, wonguk_ilgan, wonguk_jiji, purpose, yongsin=None):
     p=pillars(dt); r=PURPOSE_RULES[purpose]
     day_gan,day_ji=p['day'][0],p['day'][1]
     ss_gan=sipsin(wonguk_ilgan,day_gan); ss_ji=sipsin_of_jiji(wonguk_ilgan,day_ji)
@@ -210,11 +278,16 @@ def score_day(dt, wonguk_ilgan, wonguk_jiji, purpose):
     # 황흑도 가산 (전통 택일)
     if p['tianshen_luck']=='吉': score+=1; reasons.append('+황도')
     elif p['tianshen_luck']=='凶': score-=1; reasons.append('-흑도')
+    # 신강약 용신 보정: 그 날 십신이 용신 그룹이면 가점, 기신(반대)이면 감점
+    if yongsin:
+        for ss in (ss_gan, ss_ji):
+            grp=_sipsin_group(ss)
+            if grp in yongsin: score+=1.5; reasons.append(f'+용신({grp})')
     ld=lunar_day(dt); son_free= ld%10 in (9,0)
     if son_free: reasons.append('손없는날')
     return {'date':dt.strftime('%Y-%m-%d (%a)'),'day_pillar':p['day'],'십신':f'{ss_gan}/{ss_ji}',
             '신살':sinsal,'건제':p['zhixing'],'황흑도':p['tianshen_luck'],'손없는날':son_free,
-            'score':score,'reasons':reasons}
+            'score':round(score,1),'reasons':reasons}
 
 if __name__=="__main__":
     son=pillars(datetime.date(2007,3,15))
