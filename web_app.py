@@ -125,9 +125,12 @@ with st.sidebar:
                 "대상자의 사주 정보를 입력하세요.</span>", unsafe_allow_html=True)
     st.write("")
     today = datetime.date.today()
+    cal_type = st.radio("달력", ["양력", "음력", "음력(윤달)"], horizontal=True)
     bd = st.date_input("생년월일", value=datetime.date(1990, 1, 1),
                        min_value=datetime.date(1930, 1, 1), max_value=today,
                        format="YYYY-MM-DD")
+    if cal_type != "양력":
+        st.caption("※ 입력한 날짜를 음력으로 보고 양력으로 자동 변환합니다.")
     gender_label = st.radio("성별", ["남성", "여성"], horizontal=True)
     know_time = st.checkbox("태어난 시각을 알아요", value=False)
     hour_val, min_val = None, 0
@@ -139,7 +142,14 @@ with st.sidebar:
     if st.button("원국 설정 / 새 상담 시작", type="primary", use_container_width=True):
         h = int(hour_val) if know_time else None
         gender = 1 if gender_label == "남성" else 0
-        p = agent.pillars(bd, h, int(min_val), gender=gender)
+        # 음력이면 양력으로 변환
+        if cal_type == "음력":
+            bd_solar = agent.solar_from_lunar(bd.year, bd.month, bd.day, leap=False)
+        elif cal_type == "음력(윤달)":
+            bd_solar = agent.solar_from_lunar(bd.year, bd.month, bd.day, leap=True)
+        else:
+            bd_solar = bd
+        p = agent.pillars(bd_solar, h, int(min_val), gender=gender)
         st.session_state.profile = {"ganji": p["day"], "ilgan": p["day"][0],
                                     "ilji": p["day"][1], "year_pillar": p["year"],
                                     "hour_pillar": p.get("hour"),
@@ -147,8 +157,9 @@ with st.sidebar:
                                     "daeun_current": p.get("daeun_current"),
                                     "daeun_list": p.get("daeun_list"),
                                     "daeun_forward": p.get("daeun_forward"),
-                                    "birth_year": bd.year,
-                                    "age": p.get("age")}
+                                    "birth_year": bd_solar.year,
+                                    "age": p.get("age"),
+                                    "strength": p.get("strength")}
         agent.set_profile(st.session_state.profile)
         try:
             st.session_state.gemini_client, st.session_state.chat = agent.new_chat()
@@ -169,6 +180,10 @@ with st.sidebar:
         cur = pr.get("daeun_current")
         if cur:
             line += f"\n\n현재 대운: {cur['ganzhi']} ({cur['start']}~{cur['end']}세)"
+        stg = pr.get("strength")
+        if stg:
+            yong = "·".join(stg.get("용신방향", []))
+            line += f"\n\n{stg.get('판정','')} · 용신 {yong}"
         st.success(line)
     st.divider()
     chips = "".join(f"<span class='chip'>{p}</span>" for p in agent.PURPOSE_RULES.keys())
