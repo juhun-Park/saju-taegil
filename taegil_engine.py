@@ -137,7 +137,64 @@ def strength_for(dt, hour=None, minute=0, true_solar=True):
     ec=_lunar(dt,hour,minute,true_solar).getEightChar()
     return analyze_strength(ec)
 
+# ---------- 오행 분포 & 건강 경향 ----------
+def ohaeng_distribution(ec):
+    """팔자의 오행 세력 분포(천간+지장간 가중)를 집계."""
+    dist={'木':0.0,'火':0.0,'土':0.0,'金':0.0,'水':0.0}
+    for gz in [ec.getYear(),ec.getMonth(),ec.getDay(),ec.getTime()]:
+        dist[GAN_OH[gz[0]]]+=1.0
+        for hg,w in _JIJI_HIDDEN[gz[1]]:
+            dist[GAN_OH[hg]]+=w
+    total=sum(dist.values()) or 1
+    return {k:round(v/total,3) for k,v in dist.items()}
+
+def health_tendency(dt, hour=None, minute=0, true_solar=True):
+    """오행 분포로 과다(强)·부족(弱) 오행을 찾아 건강 경향 데이터의 키를 돌려준다.
+    실제 증상/예방 텍스트는 health_ohaeng.json에서 조회(에이전트가 결합)."""
+    ec=_lunar(dt,hour,minute,true_solar).getEightChar()
+    dist=ohaeng_distribution(ec)
+    avg=1/5
+    strong=[k for k,v in dist.items() if v>=avg*1.8]   # 뚜렷이 과다
+    weak=[k for k,v in dist.items() if v<=avg*0.4]      # 뚜렷이 부족
+    # 하나도 안 잡히면 최다/최소 하나씩
+    order=sorted(dist.items(), key=lambda x:-x[1])
+    if not strong: strong=[order[0][0]]
+    if not weak: weak=[order[-1][0]]
+    return {'분포':dist,'과다오행':strong,'부족오행':weak}
+
 def lunar_day(dt): return _lunar(dt).getDay()  # 음력 날짜(손없는날 판정용)
+
+# ---------- 궁합(합충) ----------
+CHEONGAN_HAP={('甲','己'),('乙','庚'),('丙','辛'),('丁','壬'),('戊','癸')}
+JIJI_YUKHAP={('子','丑'),('寅','亥'),('卯','戌'),('辰','酉'),('巳','申'),('午','未')}
+JIJI_CHUNG={('子','午'),('丑','未'),('寅','申'),('卯','酉'),('辰','戌'),('巳','亥')}
+def _pair_in(a,b,pairs): return (a,b) in pairs or (b,a) in pairs
+
+def compatibility(ilgan1, ilji1, dist1, ilgan2, ilji2, dist2):
+    """두 사람의 일간·일지·오행분포로 궁합을 점수화."""
+    score=0; plus=[]; minus=[]
+    # 1) 일간 천간합 (강한 이끌림)
+    if _pair_in(ilgan1, ilgan2, CHEONGAN_HAP):
+        score+=3; plus.append('일간 천간합(서로 끌리는 기운)')
+    # 2) 일지 관계
+    if _pair_in(ilji1, ilji2, JIJI_YUKHAP):
+        score+=3; plus.append('일지 육합(부부 화합의 기운)')
+    elif ilji1 in SAMHAP_GROUP and SAMHAP_GROUP[ilji1]==SAMHAP_GROUP.get(ilji2) and ilji1!=ilji2:
+        score+=2; plus.append('일지 삼합(뜻이 통하는 기운)')
+    if _pair_in(ilji1, ilji2, JIJI_CHUNG):
+        score-=3; minus.append('일지 충(부딪히기 쉬운 기운)')
+    # 3) 일간 오행 상생/상극
+    o1,o2=GAN_OH[ilgan1],GAN_OH[ilgan2]
+    if o1==o2: plus.append('같은 오행(비슷한 기질)')
+    elif SAENG[o1]==o2 or SAENG[o2]==o1: score+=2; plus.append('오행 상생(서로 북돋움)')
+    elif GEUK[o1]==o2 or GEUK[o2]==o1: score-=1; minus.append('오행 상극(주도권 갈등 주의)')
+    # 4) 오행 보완: 한쪽 부족을 다른쪽이 채워주는가
+    for oh in ['木','火','土','金','水']:
+        if dist1.get(oh,0)<0.08 and dist2.get(oh,0)>=0.25:
+            score+=1; plus.append(f'{oh} 보완(상대가 채워줌)'); break
+    verdict=('매우 좋음' if score>=6 else '좋음' if score>=3 else
+             '무난' if score>=0 else '노력 필요' if score>=-3 else '주의')
+    return {'점수':score,'판정':verdict,'좋은점':plus,'주의점':minus}
 
 # ---------- 12운성(십이운성) & 대운 시기 진단 ----------
 CHANGSAENG_START={'甲':'亥','丙':'寅','戊':'寅','庚':'巳','壬':'申',
