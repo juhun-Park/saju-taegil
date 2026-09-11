@@ -147,6 +147,104 @@ def run_timing_check(purpose: str, years: int = 5) -> dict:
         return {"error": "진단할 수 없습니다."}
     return res
 
+def run_health() -> dict:
+    """등록된 사용자의 사주(원국) 오행 분포를 분석해, 명리적으로 주의할 체질 경향과
+    도움이 되는 생활 습관(음식·운동·색)을 돌려준다.
+    '건강운', '어디가 약한가', '무슨 병 조심', '체질' 같은 질문에 사용한다.
+    ※ 이것은 의료 진단이 아니라 전통 명리의 체질 경향 해석이다.
+    Returns:
+        과다/부족 오행과 그에 따른 장부 경향·예방 습관.
+    """
+    if not _PROFILE:
+        return {"error": "사용자 사주가 아직 등록되지 않았습니다."}
+    from taegil_engine import health_tendency
+    import datetime as _dt, json as _j
+    bd=_PROFILE.get('_birth')  # (y,m,d,h,minute) 저장돼 있으면 사용
+    if not bd:
+        # 원국 재구성이 어려우면 일간 오행만으로 축약
+        return {"error": "생년월일 정보가 부족합니다."}
+    y,m,d,h,mi=bd
+    ht=health_tendency(_dt.date(y,m,d), h, mi)
+    # 건강 데이터 로드
+    try:
+        with open("health_ohaeng.json", encoding="utf-8") as f:
+            HDB=_j.load(f)
+    except Exception:
+        HDB={}
+    def detail(oh, kind):
+        e=HDB.get(oh, {})
+        return {"오행":oh, "증상경향":e.get(kind,""), "예방":e.get("예방",[])}
+    return {"오행분포":ht['분포'],
+            "과다_주의": [detail(o,'강하면') for o in ht['과다오행']],
+            "부족_주의": [detail(o,'약하면') for o in ht['부족오행']],
+            "안내":"명리적 체질 경향이며 의료 진단이 아님"}
+
+def run_personality() -> dict:
+    """등록된 사용자의 사주(원국)로 타고난 성격·기질을 분석한다.
+    '내 성격', '나는 어떤 사람', '기질', '성향' 같은 질문에 사용한다.
+    일간 본성 + 신강약 + 오행 분포를 결합해 돌려주므로, 모델은 결과만 근거로 설명한다.
+    Returns:
+        일간 본성, 신강약, 오행 균형에 따른 성격 경향.
+    """
+    if not _PROFILE:
+        return {"error": "사용자 사주가 아직 등록되지 않았습니다."}
+    from taegil_engine import health_tendency
+    import datetime as _dt
+    il=_PROFILE['ilgan']
+    db=_load_career(); out={"일간":il, "일주":_PROFILE['ganji']}
+    if db:
+        rec=next((r for r in db['layers']['ilgan']['records'] if r['key']['ilgan']==il), None)
+        if rec: out["일간_본성"]=rec.get('core_nature','')
+        grec=next((r for r in db['layers']['ganji']['records'] if r['key']['ganji']==_PROFILE['ganji']), None)
+        if grec: out["일주_특성"]=grec.get('characteristic','')
+    if _PROFILE.get("strength"):
+        st=_PROFILE["strength"]
+        out["신강약"]=st.get("판정")
+        out["기질경향"]=("주관과 추진력이 강한 편" if st.get("is_strong")
+                       else "섬세하고 주변과 조화를 중시하는 편")
+    bd=_PROFILE.get('_birth')
+    if bd:
+        ht=health_tendency(_dt.date(bd[0],bd[1],bd[2]), bd[3], bd[4])
+        out["오행분포"]=ht['분포']; out["강한오행"]=ht['과다오행']; out["약한오행"]=ht['부족오행']
+    return out
+
+def run_compatibility(partner_year: int, partner_month: int, partner_day: int,
+                      partner_gender: str = "", partner_hour: int = -1,
+                      partner_is_lunar: bool = False) -> dict:
+    """등록된 사용자와 상대방의 궁합을 본다. 상대방 생년월일이 필요하므로,
+    대화에서 상대방 생년월일(과 가능하면 시)을 받은 뒤 호출한다.
+    '궁합', '이 사람과 잘 맞나', '연애/결혼 상대와의 인연' 질문에 사용한다.
+    Args:
+        partner_year, partner_month, partner_day: 상대방 생년월일.
+        partner_gender: '남성'/'여성'(선택).
+        partner_hour: 상대방 태어난 시(0~23), 모르면 -1.
+        partner_is_lunar: 상대방 생일이 음력이면 True.
+    Returns:
+        두 사람의 일주와 궁합 판정(좋은 점·주의할 점).
+    """
+    if not _PROFILE:
+        return {"error": "본인 사주가 먼저 등록되어야 합니다."}
+    from taegil_engine import pillars as _pil, health_tendency, compatibility, solar_from_lunar
+    import datetime as _dt
+    try:
+        if partner_is_lunar:
+            pbd=solar_from_lunar(partner_year, partner_month, partner_day)
+        else:
+            pbd=_dt.date(partner_year, partner_month, partner_day)
+    except Exception:
+        return {"error": "상대방 생년월일이 올바르지 않습니다. 다시 확인해 주세요."}
+    ph = partner_hour if partner_hour is not None and partner_hour>=0 else None
+    pp=_pil(pbd, ph)
+    p_ilgan, p_ilji = pp['day'][0], pp['day'][1]
+    p_dist=health_tendency(pbd, ph)['분포']
+    # 본인 분포
+    mb=_PROFILE.get('_birth')
+    m_dist=health_tendency(_dt.date(mb[0],mb[1],mb[2]), mb[3], mb[4])['분포'] if mb else {}
+    res=compatibility(_PROFILE['ilgan'], _PROFILE['ilji'], m_dist,
+                      p_ilgan, p_ilji, p_dist)
+    res['본인_일주']=_PROFILE['ganji']; res['상대_일주']=pp['day']
+    return res
+
 SYSTEM = None
 def _system():
     today = datetime.date.today().isoformat()
@@ -162,6 +260,11 @@ def _system():
 - 가장 중요한 규칙: 간지·십신·신살·12운성·대운·세운·길흉·적성을 절대 스스로 지어내지 마세요.
   이 값들은 반드시 아래 도구를 호출해서 얻고, 도구가 돌려준 데이터만 근거로 설명합니다.
   (당신은 '계산기'가 아니라 '통역사'입니다. 계산은 도구가, 당신은 따뜻한 설명만.)
+- 건강운 질문을 회피하지 마세요. 당신은 의사가 아니지만, '사주 명리로 보는 타고난 체질 경향'은
+  얼마든지 설명할 수 있습니다. "AI라서 건강은 답할 수 없다"는 식으로 거절하지 마세요.
+  대신 명리적 관점(오행 균형상 어느 장부가 과로/약화 경향인지)으로 풀어주고, 도움이 되는
+  생활 습관(음식·운동·색)을 안내하세요. 마지막에 "명리로 보는 경향일 뿐 의학적 진단이 아니니,
+  실제 증상이 있으면 병원 진료를 받으시라"는 한 줄을 자연스럽게 덧붙이면 충분합니다.
 
 ━━━━━━━━━━━━━━━━━━━━
 【1단계: 질문의 속뜻을 파악해 도구를 고른다】
@@ -180,6 +283,20 @@ def _system():
 ▶ (다) 타고난 적성 — run_career
    "나는 어떤 일이 맞아? 무슨 성향이야?" 처럼 '타고난 성향/진로'를 원함. 시기·날짜 불필요.
    예: "내 직업 적성", "나는 사업가형인가", "어떤 분야가 맞을까"
+
+▶ (라) 건강운/체질 — run_health
+   "내 건강운은? 어디가 약해? 무슨 병 조심?" 처럼 '타고난 체질 경향'을 원함.
+   예: "건강운 봐줘", "몸 어디가 약한 편이야", "체질상 조심할 건강 문제"
+
+▶ (마) 성격/기질 — run_personality
+   "내 성격은? 나는 어떤 사람?" 처럼 타고난 성격·기질을 원함.
+   예: "내 성격 봐줘", "나는 어떤 기질이야", "내 성향이 궁금해"
+
+▶ (바) 궁합 — run_compatibility
+   "이 사람과 잘 맞아? 궁합 봐줘" 처럼 상대방과의 인연을 원함.
+   ★ 상대방 생년월일이 반드시 필요하다. 없으면 먼저 자연스럽게 물어라:
+   "상대분 생년월일을 알려주시겠어요? 태어난 시간도 알면 더 정확해요."
+   생년월일을 받으면 run_compatibility를 호출한다(음력이면 partner_is_lunar=true).
 
 ▷ 구분 팁: '며칠/언제(날짜)'→가, '지금/올해/몇 년 안에(시점)'→나, '나는 뭐가 맞아(성향)'→다.
 ▷ 애매하면 한 번만 자연스럽게 되물으세요. 예: "특정 날짜를 잡아드릴까요, 아니면 어느 시기가 좋은지 흐름을 봐드릴까요?"
@@ -229,7 +346,7 @@ def new_chat():
     from google.genai import types
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
     chat = client.chats.create(model=MODEL, config=types.GenerateContentConfig(
-        system_instruction=_system(), tools=[run_taegil, run_career, run_timing_check], temperature=0.7,
+        system_instruction=_system(), tools=[run_taegil, run_career, run_timing_check, run_health, run_personality, run_compatibility], temperature=0.7,
         max_output_tokens=2048))  # 답변이 길어도 잘리지 않도록 넉넉히
     return client, chat
 
