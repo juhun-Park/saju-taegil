@@ -224,64 +224,65 @@ if not os.environ.get("GEMINI_API_KEY"):
     st.error("GEMINI_API_KEY가 없습니다. 설정을 확인해 주세요.")
     st.stop()
 
-if "profile" not in st.session_state:
-    # ── 원국 미설정: 안내 + 기능 카드 ──
-    st.markdown("#### 생년월일을 입력하면, 여섯 가지 사주를 봐드립니다")
-    st.markdown("<span style='color:#94A3B8'>왼쪽에서 생년월일·성별을 입력하고 "
-                "<b>원국 설정</b>을 눌러주세요.</span>", unsafe_allow_html=True)
-    st.markdown("<div style='margin-top:8px;padding:10px 14px;border-radius:12px;"
-                "background:rgba(197,160,94,0.10);border:1px solid rgba(197,160,94,0.30);"
-                "color:#E8C874;font-size:0.88rem'>📱 휴대폰에서는 왼쪽 위 <b>‹ 화살표</b>를 "
-                "눌러 사주 입력창을 여세요.</div>", unsafe_allow_html=True)
-    st.write("")
-    cards = [
-        ("📅 길일 택일", "이사·시험·계약·개업 등 좋은 날짜 추천", "990원"),
-        ("🕰 시기운 진단", "대운·세운으로 앞으로 유리한 시기 분석", "990원"),
-        ("🧭 타고난 적성", "성향과 잘 맞는 진로", "990원"),
-        ("🩺 건강운·체질", "오행 균형으로 보는 약한 장부", "990원"),
-        ("🪞 성격·기질", "타고난 성격과 강점", "990원"),
-        ("💞 궁합", "두 사람 사주로 보는 인연", "990원"),
-    ]
-    cols = st.columns(2)
-    for i,(t,d,price) in enumerate(cards):
-        with cols[i%2]:
-            st.markdown(f"<div class='qcard'><div class='t'>{t}</div>"
-                        f"<div class='d'>{d}</div>"
-                        f"<div style='margin-top:8px;color:#E8C874;font-weight:700;font-size:0.9rem'>{price}</div>"
-                        f"</div>", unsafe_allow_html=True)
-    st.markdown("<div style='margin-top:6px;color:#94A3B8;font-size:0.86rem'>"
-                "💬 더 깊은 상담은 <b style='color:#E8C874'>무제한 채팅 9,900원</b>으로 이어서 이용하실 수 있어요.</div>",
-                unsafe_allow_html=True)
-    st.stop()
-
-# 원국 설정됨 → 도구가 이 원국을 쓰도록
-agent.set_profile(st.session_state.profile)
-
 CATS = {
     "📅 택일": "taegil", "🕰 시기운": "timing", "🧭 적성": "career",
     "🩺 건강운": "health", "🪞 성격": "personality", "💞 궁합": "compatibility",
 }
 PURPOSES = list(agent.PURPOSE_RULES.keys())
+_has_profile = "profile" in st.session_state
+if _has_profile:
+    agent.set_profile(st.session_state.profile)
 
-# ── 모드 선택 ──
+# ══════════ 메인 카드 화면 (항상 유지) ══════════
 if "mode" not in st.session_state:
-    st.markdown("#### 어떻게 상담하시겠어요?")
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("<div class='qcard'><div class='t'>📋 카테고리 사주풀이</div>"
-                    "<div class='d'>항목을 고르고 양식만 채우면, 정성껏 정리한 "
-                    "사주 리포트를 한 번에 받아보실 수 있어요.</div>"
-                    "<div style='margin-top:8px;color:#E8C874;font-weight:700'>990원 / 1회</div></div>",
+    if not _has_profile:
+        st.markdown("<div style='padding:10px 14px;border-radius:12px;margin-bottom:6px;"
+                    "background:rgba(197,160,94,0.10);border:1px solid rgba(197,160,94,0.30);"
+                    "color:#E8C874;font-size:0.9rem'>👈 먼저 왼쪽에서 생년월일·성별을 입력하고 "
+                    "<b>원국 설정</b>을 눌러주세요. (휴대폰은 왼쪽 위 ‹ 화살표)</div>",
                     unsafe_allow_html=True)
-        if st.button("카테고리 사주풀이 시작", use_container_width=True, key="m1"):
-            st.session_state.mode = "report"; st.rerun()
-    with c2:
-        st.markdown("<div class='qcard'><div class='t'>💬 무제한 채팅 상담</div>"
-                    "<div class='d'>동인과 자유롭게 대화하며 궁금한 것을 깊이 있게 "
-                    "여쭤볼 수 있어요. 여러 주제를 이어서 상담합니다.</div>"
-                    "<div style='margin-top:8px;color:#E8C874;font-weight:700'>9,900원</div></div>",
+    else:
+        pr = st.session_state.profile
+        st.markdown(f"<div style='color:#C5A05E;font-size:0.9rem;margin-bottom:6px'>"
+                    f"원국 <b>{pr['ganji']}</b> · {pr.get('gender','')} 님, 무엇을 볼까요?</div>",
                     unsafe_allow_html=True)
-        if st.button("무제한 채팅 시작", use_container_width=True, key="m2"):
+
+    st.markdown("#### 📋 카테고리 사주풀이  <span style='color:#E8C874;font-size:0.85rem'>990원 / 1회</span>",
+                unsafe_allow_html=True)
+    cards = [
+        ("📅 길일 택일", "이사·시험·계약·개업 등 좋은 날짜 추천", "taegil"),
+        ("🕰 시기운 진단", "대운·세운으로 앞으로 유리한 시기 분석", "timing"),
+        ("🧭 타고난 적성", "성향과 잘 맞는 진로", "career"),
+        ("🩺 건강운·체질", "오행 균형으로 보는 약한 장부", "health"),
+        ("🪞 성격·기질", "타고난 성격과 강점", "personality"),
+        ("💞 궁합", "두 사람 사주로 보는 인연", "compatibility"),
+    ]
+    cols = st.columns(2)
+    for i,(t,d,cat) in enumerate(cards):
+        with cols[i%2]:
+            st.markdown(f"<div class='qcard' style='margin-bottom:6px'><div class='t'>{t}</div>"
+                        f"<div class='d'>{d}</div>"
+                        f"<div style='margin-top:6px;color:#E8C874;font-weight:700;font-size:0.9rem'>990원</div>"
+                        f"</div>", unsafe_allow_html=True)
+            if st.button(f"{t} 보기", key=f"cat_{cat}", use_container_width=True):
+                if not _has_profile:
+                    st.warning("먼저 왼쪽에서 원국을 설정해 주세요.")
+                else:
+                    st.session_state.mode = "report"
+                    st.session_state.preset_cat = cat
+                    st.rerun()
+
+    st.markdown("---")
+    st.markdown("#### 💬 무제한 채팅 상담  <span style='color:#E8C874;font-size:0.85rem'>9,900원</span>",
+                unsafe_allow_html=True)
+    st.markdown("<div class='qcard'><div class='d'>동인과 자유롭게 대화하며 여러 주제를 "
+                "깊이 있게 이어서 상담합니다. 리포트로 부족한 궁금증을 마음껏 풀어보세요.</div></div>",
+                unsafe_allow_html=True)
+    if st.button("💬 무제한 채팅 시작  ·  9,900원", key="start_chat",
+                 type="primary", use_container_width=True):
+        if not _has_profile:
+            st.warning("먼저 왼쪽에서 원국을 설정해 주세요.")
+        else:
             st.session_state.mode = "chat"; st.rerun()
     st.stop()
 
@@ -289,7 +290,7 @@ if "mode" not in st.session_state:
 top = st.container()
 with top:
     if st.button("← 처음으로", key="back"):
-        for k in ("mode","category","report","chat","messages"):
+        for k in ("mode","category","report","chat","messages","preset_cat"):
             st.session_state.pop(k, None)
         st.rerun()
 
@@ -297,7 +298,10 @@ with top:
 if st.session_state.mode == "report":
     st.markdown("### 📋 카테고리 사주풀이  <span style='color:#E8C874;font-size:0.9rem'>990원 / 1회</span>",
                 unsafe_allow_html=True)
-    cat_label = st.selectbox("어떤 사주를 보고 싶으신가요?", list(CATS.keys()))
+    _labels = list(CATS.keys())
+    _preset = st.session_state.get("preset_cat")
+    _idx = next((i for i,(k,v) in enumerate(CATS.items()) if v==_preset), 0)
+    cat_label = st.selectbox("어떤 사주를 보고 싶으신가요?", _labels, index=_idx)
     cat = CATS[cat_label]
     form = {}
     st.markdown("<div style='color:#94A3B8;font-size:0.86rem;margin:6px 0'>"
