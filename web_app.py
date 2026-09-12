@@ -171,10 +171,9 @@ with st.sidebar:
         hour_val = c1.number_input("시 (0~23)", min_value=0, max_value=23, value=12)
         min_val = c2.number_input("분 (0~59)", min_value=0, max_value=59, value=0)
         st.caption("※ 진태양시(한국 −약32분) 자동 보정됩니다.")
-    if st.button("원국 설정 / 새 상담 시작", type="primary", use_container_width=True):
+    if st.button("원국 설정 / 변경", type="primary", use_container_width=True):
         h = int(hour_val) if know_time else None
         gender = 1 if gender_label == "남성" else 0
-        # 음력이면 양력으로 변환
         if cal_type == "음력":
             bd_solar = agent.solar_from_lunar(bd.year, bd.month, bd.day, leap=False)
         elif cal_type == "음력(윤달)":
@@ -194,21 +193,10 @@ with st.sidebar:
                                     "strength": p.get("strength"),
                                     "_birth": (bd_solar.year, bd_solar.month, bd_solar.day,
                                                h, int(min_val))}
-        agent.set_profile(st.session_state.profile)
-        try:
-            st.session_state.gemini_client, st.session_state.chat = agent.new_chat()
-            st.session_state.messages = [{"role": "assistant",
-                "content": "안녕하세요, 동인입니다. 🀄\n\n무엇이든 편하게 여쭤보세요.\n\n"
-                           "📅 택일 — \"10월에 이사 좋은 날?\"\n"
-                           "🕰 시기운 — \"내년에 이직해도 될까?\"\n"
-                           "🧭 적성 — \"내 적성이 뭐야?\"\n"
-                           "🩺 건강운 — \"내 건강운 봐줘\"\n"
-                           "🪞 성격 — \"나는 어떤 사람이야?\"\n"
-                           "💞 궁합 — \"○○년생이랑 궁합 어때?\""}]
-        except Exception as e:
-            st.session_state.chat = None
-            st.session_state.messages = []
-            st.error(f"대화 세션 생성 실패: {e}")
+        # 프로필 바뀌면 진행 상태 초기화
+        for k in ("chat","messages","mode","category","report"):
+            st.session_state.pop(k, None)
+        st.success("원국이 설정되었습니다. 오른쪽에서 상담을 시작하세요.")
 
     if "profile" in st.session_state:
         pr = st.session_state.profile
@@ -235,47 +223,159 @@ st.markdown("<div style='display:flex;align-items:center;gap:12px'>"
             "border:1px solid rgba(232,200,116,0.7);color:#F5E6C8;font-weight:800;font-size:0.95rem;"
             "line-height:1.0;letter-spacing:-1px'>棟寅</span>"
             "<h1 style='margin:0'>동인 · AI 사주 상담</h1></div>", unsafe_allow_html=True)
-st.markdown("<span style='color:#C5A05E;font-size:0.82rem'>● 명리 정밀 엔진 · 택일 · 시기운 · 적성</span>",
+st.markdown("<span style='color:#C5A05E;font-size:0.82rem'>● 명리 정밀 엔진 · 택일 · 시기운 · 적성 · 건강 · 성격 · 궁합</span>",
             unsafe_allow_html=True)
 st.write("")
 
 if not os.environ.get("GEMINI_API_KEY"):
-    st.error("GEMINI_API_KEY가 없습니다. API_KEY.env 파일을 확인하고 이 폴더에서 실행했는지 보세요.")
-elif "chat" not in st.session_state:
+    st.error("GEMINI_API_KEY가 없습니다. 설정을 확인해 주세요.")
+    st.stop()
+
+if "profile" not in st.session_state:
+    # ── 원국 미설정: 안내 + 기능 카드 ──
     st.markdown("#### 생년월일을 입력하면, 여섯 가지 사주를 봐드립니다")
-    st.markdown("<span style='color:#94A3B8'>왼쪽에서 생년월일과 성별을 입력하고 "
-                "<b>원국 설정 / 새 상담 시작</b>을 누르면 상담이 시작됩니다.</span>",
-                unsafe_allow_html=True)
+    st.markdown("<span style='color:#94A3B8'>왼쪽에서 생년월일·성별을 입력하고 "
+                "<b>원국 설정</b>을 눌러주세요.</span>", unsafe_allow_html=True)
     st.markdown("<div style='margin-top:8px;padding:10px 14px;border-radius:12px;"
                 "background:rgba(197,160,94,0.10);border:1px solid rgba(197,160,94,0.30);"
                 "color:#E8C874;font-size:0.88rem'>📱 휴대폰에서는 왼쪽 위 <b>‹ 화살표</b>를 "
                 "눌러 사주 입력창을 여세요.</div>", unsafe_allow_html=True)
     st.write("")
     cards = [
-        ("📅 길일 택일", "이사·시험·계약·개업 등 좋은 날짜를 콕 집어 추천", "\"10월에 이사 좋은 날?\""),
-        ("🕰 시기운 진단", "대운·세운으로 앞으로 언제가 유리한지 분석", "\"내년에 이직해도 될까?\""),
-        ("🧭 타고난 적성", "일간·일주로 보는 성향과 잘 맞는 진로", "\"내 적성이 뭐야?\""),
-        ("🩺 건강운·체질", "오행 균형으로 보는 약한 장부와 생활 습관", "\"내 건강운 봐줘\""),
-        ("🪞 성격·기질", "타고난 성격과 강점, 마음의 결", "\"나는 어떤 사람이야?\""),
-        ("💞 궁합", "두 사람 사주로 보는 인연과 조화", "\"○년생이랑 궁합 어때?\""),
+        ("📅 길일 택일", "이사·시험·계약·개업 등 좋은 날짜 추천"),
+        ("🕰 시기운 진단", "대운·세운으로 앞으로 유리한 시기 분석"),
+        ("🧭 타고난 적성", "성향과 잘 맞는 진로"),
+        ("🩺 건강운·체질", "오행 균형으로 보는 약한 장부"),
+        ("🪞 성격·기질", "타고난 성격과 강점"),
+        ("💞 궁합", "두 사람 사주로 보는 인연"),
     ]
     cols = st.columns(2)
-    for i, (t, d, ex) in enumerate(cards):
-        with cols[i % 2]:
+    for i,(t,d) in enumerate(cards):
+        with cols[i%2]:
             st.markdown(f"<div class='qcard'><div class='t'>{t}</div>"
-                        f"<div class='d'>{d}</div>"
-                        f"<div style='margin-top:8px;color:#C5A05E;font-size:0.8rem'>{ex}</div></div>",
-                        unsafe_allow_html=True)
-else:
-    agent.set_profile(st.session_state.profile)
+                        f"<div class='d'>{d}</div></div>", unsafe_allow_html=True)
+    st.stop()
+
+# 원국 설정됨 → 도구가 이 원국을 쓰도록
+agent.set_profile(st.session_state.profile)
+
+CATS = {
+    "📅 택일": "taegil", "🕰 시기운": "timing", "🧭 적성": "career",
+    "🩺 건강운": "health", "🪞 성격": "personality", "💞 궁합": "compatibility",
+}
+PURPOSES = list(agent.PURPOSE_RULES.keys())
+
+# ── 모드 선택 ──
+if "mode" not in st.session_state:
+    st.markdown("#### 어떻게 상담하시겠어요?")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("<div class='qcard'><div class='t'>📋 카테고리 사주풀이</div>"
+                    "<div class='d'>항목을 고르고 양식만 채우면, 정성껏 정리한 "
+                    "사주 리포트를 한 번에 받아보실 수 있어요.</div>"
+                    "<div style='margin-top:8px;color:#E8C874;font-weight:700'>990원 / 1회</div></div>",
+                    unsafe_allow_html=True)
+        if st.button("카테고리 사주풀이 시작", use_container_width=True, key="m1"):
+            st.session_state.mode = "report"; st.rerun()
+    with c2:
+        st.markdown("<div class='qcard'><div class='t'>💬 무제한 채팅 상담</div>"
+                    "<div class='d'>동인과 자유롭게 대화하며 궁금한 것을 깊이 있게 "
+                    "여쭤볼 수 있어요. 여러 주제를 이어서 상담합니다.</div>"
+                    "<div style='margin-top:8px;color:#E8C874;font-weight:700'>9,900원</div></div>",
+                    unsafe_allow_html=True)
+        if st.button("무제한 채팅 시작", use_container_width=True, key="m2"):
+            st.session_state.mode = "chat"; st.rerun()
+    st.stop()
+
+# 상단 뒤로가기
+top = st.container()
+with top:
+    if st.button("← 처음으로", key="back"):
+        for k in ("mode","category","report","chat","messages"):
+            st.session_state.pop(k, None)
+        st.rerun()
+
+# ══════════ 모드 1: 카테고리 리포트 (990원) ══════════
+if st.session_state.mode == "report":
+    st.markdown("### 📋 카테고리 사주풀이  <span style='color:#E8C874;font-size:0.9rem'>990원 / 1회</span>",
+                unsafe_allow_html=True)
+    cat_label = st.selectbox("어떤 사주를 보고 싶으신가요?", list(CATS.keys()))
+    cat = CATS[cat_label]
+    form = {}
+    st.markdown("<div style='color:#94A3B8;font-size:0.86rem;margin:6px 0'>"
+                "아래 항목만 채우시면 됩니다. 잘 모르는 칸은 비워두셔도 알아서 봐드려요.</div>",
+                unsafe_allow_html=True)
+
+    if cat == "taegil":
+        form["purpose"] = st.selectbox("무슨 일의 날짜를 잡을까요?", PURPOSES)
+        colA, colB = st.columns(2)
+        y = colA.number_input("연도", min_value=datetime.date.today().year,
+                              max_value=datetime.date.today().year+3,
+                              value=datetime.date.today().year)
+        m = colB.selectbox("월", list(range(1,13)), index=datetime.date.today().month-1)
+        import calendar as _cal
+        last = _cal.monthrange(int(y), int(m))[1]
+        form["date_start"] = f"{int(y)}-{int(m):02d}-01"
+        form["date_end"] = f"{int(y)}-{int(m):02d}-{last:02d}"
+        st.caption(f"→ {int(y)}년 {int(m)}월 안에서 좋은 날을 찾아드립니다.")
+    elif cat == "timing":
+        form["purpose"] = st.selectbox("어떤 일의 시기를 볼까요?", PURPOSES)
+        form["years"] = st.slider("앞으로 몇 년을 볼까요?", 1, 10, 5)
+    elif cat == "compatibility":
+        st.markdown("**상대방 정보**")
+        colA, colB, colC = st.columns(3)
+        form["py"] = colA.number_input("연", min_value=1930, max_value=datetime.date.today().year, value=1992)
+        form["pm"] = colB.number_input("월", min_value=1, max_value=12, value=1)
+        form["pd"] = colC.number_input("일", min_value=1, max_value=31, value=1)
+        colD, colE = st.columns(2)
+        form["pg"] = colD.radio("상대 성별", ["여성","남성"], horizontal=True)
+        pk = colE.checkbox("상대 시간 알아요")
+        form["ph"] = st.number_input("상대 태어난 시(0~23)", 0, 23, 12) if pk else -1
+        form["plunar"] = st.checkbox("상대 생일이 음력")
+    else:
+        st.info("이 항목은 이미 입력하신 사주 정보만으로 풀이해 드려요. 바로 진행하세요.")
+
+    st.write("")
+    if st.button(f"🔮 사주 보기  ·  990원", type="primary", use_container_width=True):
+        with st.spinner("동인이 사주를 정성껏 풀이하고 있어요…"):
+            try:
+                st.session_state.report = agent.generate_report(cat, form)
+            except Exception as e:
+                st.session_state.report = f"죄송해요, 문제가 생겼어요. 잠시 후 다시 시도해 주세요.\n\n`{e}`"
+    if st.session_state.get("report"):
+        st.markdown("---")
+        st.markdown(st.session_state.report)
+        st.markdown("---")
+        st.markdown("<div style='padding:12px 16px;border-radius:12px;"
+                    "background:rgba(158,43,37,0.12);border:1px solid rgba(197,160,94,0.35)'>"
+                    "💬 더 깊이, 이어서 물어보고 싶으신가요?<br>"
+                    "<b>무제한 채팅 상담(9,900원)</b>에서 자유롭게 대화할 수 있어요.</div>",
+                    unsafe_allow_html=True)
+        if st.button("무제한 채팅으로 이어가기", use_container_width=True):
+            for k in ("mode","report"): st.session_state.pop(k, None)
+            st.session_state.mode = "chat"; st.rerun()
+
+# ══════════ 모드 2: 무제한 채팅 (9,900원) ══════════
+elif st.session_state.mode == "chat":
+    st.markdown("### 💬 무제한 채팅 상담  <span style='color:#E8C874;font-size:0.9rem'>9,900원</span>",
+                unsafe_allow_html=True)
+    if "chat" not in st.session_state:
+        try:
+            st.session_state.gemini_client, st.session_state.chat = agent.new_chat()
+        except Exception as e:
+            st.error(f"대화 세션 생성 실패: {e}"); st.stop()
+        st.session_state.messages = [{"role":"assistant",
+            "content":"안녕하세요, 동인입니다. 🀄 무엇이든 편하게 여쭤보세요.\n\n"
+                      "📅 \"10월에 이사 좋은 날?\"  ·  🕰 \"내년에 이직해도 될까?\"\n"
+                      "🧭 \"내 적성이 뭐야?\"  ·  🩺 \"건강운 봐줘\"\n"
+                      "🪞 \"나는 어떤 사람이야?\"  ·  💞 \"○○년생이랑 궁합 어때?\""}]
     for m in st.session_state.messages:
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
     q = st.chat_input("편하게 말씀하세요")
     if q:
-        st.session_state.messages.append({"role": "user", "content": q})
-        with st.chat_message("user"):
-            st.markdown(q)
+        st.session_state.messages.append({"role":"user","content":q})
+        with st.chat_message("user"): st.markdown(q)
         with st.chat_message("assistant"):
             with st.spinner("생각하는 중…"):
                 try:
@@ -283,4 +383,4 @@ else:
                 except Exception as e:
                     text = f"죄송해요, 문제가 생겼어요. 잠시 후 다시 시도해 주세요.\n\n`{e}`"
             st.markdown(text)
-        st.session_state.messages.append({"role": "assistant", "content": text})
+        st.session_state.messages.append({"role":"assistant","content":text})
