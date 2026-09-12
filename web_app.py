@@ -203,13 +203,6 @@ with st.sidebar:
         line = f"원국: 일주 **{pr['ganji']}** (일간 {pr['ilgan']}) · {pr.get('gender','')}"
         if pr.get("hour_pillar"):
             line += f"\n\n시주: {pr['hour_pillar']}"
-        cur = pr.get("daeun_current")
-        if cur:
-            line += f"\n\n현재 대운: {cur['ganzhi']} ({cur['start']}~{cur['end']}세)"
-        stg = pr.get("strength")
-        if stg:
-            yong = "·".join(stg.get("용신방향", []))
-            line += f"\n\n{stg.get('판정','')} · 용신 {yong}"
         st.success(line)
     st.divider()
     feats = ["📅 택일", "🕰 시기운", "🧭 적성", "🩺 건강운", "🪞 성격", "💞 궁합"]
@@ -242,18 +235,23 @@ if "profile" not in st.session_state:
                 "눌러 사주 입력창을 여세요.</div>", unsafe_allow_html=True)
     st.write("")
     cards = [
-        ("📅 길일 택일", "이사·시험·계약·개업 등 좋은 날짜 추천"),
-        ("🕰 시기운 진단", "대운·세운으로 앞으로 유리한 시기 분석"),
-        ("🧭 타고난 적성", "성향과 잘 맞는 진로"),
-        ("🩺 건강운·체질", "오행 균형으로 보는 약한 장부"),
-        ("🪞 성격·기질", "타고난 성격과 강점"),
-        ("💞 궁합", "두 사람 사주로 보는 인연"),
+        ("📅 길일 택일", "이사·시험·계약·개업 등 좋은 날짜 추천", "990원"),
+        ("🕰 시기운 진단", "대운·세운으로 앞으로 유리한 시기 분석", "990원"),
+        ("🧭 타고난 적성", "성향과 잘 맞는 진로", "990원"),
+        ("🩺 건강운·체질", "오행 균형으로 보는 약한 장부", "990원"),
+        ("🪞 성격·기질", "타고난 성격과 강점", "990원"),
+        ("💞 궁합", "두 사람 사주로 보는 인연", "990원"),
     ]
     cols = st.columns(2)
-    for i,(t,d) in enumerate(cards):
+    for i,(t,d,price) in enumerate(cards):
         with cols[i%2]:
             st.markdown(f"<div class='qcard'><div class='t'>{t}</div>"
-                        f"<div class='d'>{d}</div></div>", unsafe_allow_html=True)
+                        f"<div class='d'>{d}</div>"
+                        f"<div style='margin-top:8px;color:#E8C874;font-weight:700;font-size:0.9rem'>{price}</div>"
+                        f"</div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top:6px;color:#94A3B8;font-size:0.86rem'>"
+                "💬 더 깊은 상담은 <b style='color:#E8C874'>무제한 채팅 9,900원</b>으로 이어서 이용하실 수 있어요.</div>",
+                unsafe_allow_html=True)
     st.stop()
 
 # 원국 설정됨 → 도구가 이 원국을 쓰도록
