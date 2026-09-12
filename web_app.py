@@ -126,6 +126,32 @@ h1 { background:linear-gradient(135deg,#E8C874,#C5A05E 55%,#B22234); -webkit-bac
 .qcard .d { color:#94A3B8; font-size:0.86rem; line-height:1.45; }
 .chat-input-hint { color:#64748B; font-size:0.82rem; }
 
+/* 카테고리 카드형 버튼 (secondary 버튼을 카드로 변신) */
+.stButton > button[kind="secondary"]{
+  background:rgba(255,255,255,0.04) !important;
+  border:1px solid rgba(255,255,255,0.08) !important;
+  border-radius:16px !important;
+  padding:18px 18px !important;
+  min-height:118px; height:auto !important;
+  text-align:left !important;
+  white-space:pre-line !important;      /* 라벨 줄바꿈 표시 */
+  display:flex !important; flex-direction:column; align-items:flex-start !important;
+  justify-content:flex-start; gap:2px;
+  transition:all .18s ease;
+  font-weight:400 !important;
+}
+.stButton > button[kind="secondary"]:hover{
+  border-color:rgba(197,160,94,0.5) !important; transform:translateY(-2px);
+  box-shadow:0 6px 24px rgba(158,43,37,0.14) !important; color:#E7E2D6 !important;
+}
+/* 라벨 첫 줄(제목) 크게, 마지막 줄(가격) 금색 — ::first-line 활용 */
+.stButton > button[kind="secondary"] p{
+  text-align:left !important; line-height:1.5;
+}
+.stButton > button[kind="secondary"] p::first-line{
+  font-size:1.05rem; font-weight:700; color:#F1ECE0;
+}
+
 /* 텍스트 대비 강제 (모바일에서 글자가 배경에 묻히는 문제 해결) */
 .stApp, .stApp p, .stApp span, .stApp label, .stApp li, .stApp div {
   color:#E2E8F0;
@@ -260,11 +286,9 @@ if "mode" not in st.session_state:
     cols = st.columns(2)
     for i,(t,d,cat) in enumerate(cards):
         with cols[i%2]:
-            st.markdown(f"<div class='qcard' style='margin-bottom:6px'><div class='t'>{t}</div>"
-                        f"<div class='d'>{d}</div>"
-                        f"<div style='margin-top:6px;color:#E8C874;font-weight:700;font-size:0.9rem'>990원</div>"
-                        f"</div>", unsafe_allow_html=True)
-            if st.button(f"{t} 보기", key=f"cat_{cat}", use_container_width=True):
+            # 카드 전체가 버튼 — 라벨에 제목/설명/가격을 줄바꿈으로
+            if st.button(f"{t}\n\n{d}\n\n990원", key=f"cat_{cat}",
+                         use_container_width=True):
                 if not _has_profile:
                     st.warning("먼저 왼쪽에서 원국을 설정해 주세요.")
                 else:
