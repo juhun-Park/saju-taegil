@@ -126,31 +126,35 @@ h1 { background:linear-gradient(135deg,#E8C874,#C5A05E 55%,#B22234); -webkit-bac
 .qcard .d { color:#94A3B8; font-size:0.86rem; line-height:1.45; }
 .chat-input-hint { color:#64748B; font-size:0.82rem; }
 
-/* 카테고리 카드형 버튼 (secondary 버튼을 카드로 변신) */
-.stButton > button[kind="secondary"]{
-  background:rgba(255,255,255,0.04) !important;
-  border:1px solid rgba(255,255,255,0.08) !important;
-  border-radius:16px !important;
-  padding:18px 18px !important;
-  min-height:118px; height:auto !important;
-  text-align:left !important;
-  white-space:pre-line !important;      /* 라벨 줄바꿈 표시 */
-  display:flex !important; flex-direction:column; align-items:flex-start !important;
-  justify-content:flex-start; gap:2px;
-  transition:all .18s ease;
-  font-weight:400 !important;
+/* ===== 클릭 가능한 카테고리 카드 ===== */
+.cat-card{
+  position:relative;
+  background:rgba(255,255,255,0.045);
+  border:1px solid rgba(255,255,255,0.09);
+  border-radius:18px; padding:20px 22px; min-height:132px;
+  transition:all .18s ease; overflow:hidden;
 }
-.stButton > button[kind="secondary"]:hover{
-  border-color:rgba(197,160,94,0.5) !important; transform:translateY(-2px);
-  box-shadow:0 6px 24px rgba(158,43,37,0.14) !important; color:#E7E2D6 !important;
+.cat-card:hover{
+  border-color:rgba(197,160,94,0.55); transform:translateY(-3px);
+  box-shadow:0 8px 28px rgba(158,43,37,0.18);
+  background:rgba(255,255,255,0.06);
 }
-/* 라벨 첫 줄(제목) 크게, 마지막 줄(가격) 금색 — ::first-line 활용 */
-.stButton > button[kind="secondary"] p{
-  text-align:left !important; line-height:1.5;
+.cat-card .cc-top{ display:flex; justify-content:space-between; align-items:flex-start; }
+.cat-card .cc-title{ font-size:1.22rem; font-weight:800; color:#F5F0E4; letter-spacing:-0.01em; }
+.cat-card .cc-price{
+  font-size:0.9rem; font-weight:800; color:#E8C874;
+  background:rgba(197,160,94,0.12); border:1px solid rgba(197,160,94,0.35);
+  border-radius:999px; padding:4px 12px; white-space:nowrap; margin-left:8px;
 }
-.stButton > button[kind="secondary"] p::first-line{
-  font-size:1.05rem; font-weight:700; color:#F1ECE0;
+.cat-card .cc-desc{ margin-top:12px; color:#AEB6C2; font-size:0.98rem; line-height:1.5; }
+
+/* 카드 위에 겹쳐 카드 전체를 클릭되게 만드는 투명 버튼 */
+.card-hit .stButton > button{
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  background:transparent !important; border:none !important; box-shadow:none !important;
+  color:transparent !important; z-index:3; margin:0 !important; padding:0 !important;
 }
+.card-hit{ position:relative; margin-top:-132px; height:132px; margin-bottom:16px; }
 
 /* 텍스트 대비 강제 (모바일에서 글자가 배경에 묻히는 문제 해결) */
 .stApp, .stApp p, .stApp span, .stApp label, .stApp li, .stApp div {
@@ -286,9 +290,18 @@ if "mode" not in st.session_state:
     cols = st.columns(2)
     for i,(t,d,cat) in enumerate(cards):
         with cols[i%2]:
-            # 카드 전체가 버튼 — 라벨에 제목/설명/가격을 줄바꿈으로
-            if st.button(f"{t}\n\n{d}\n\n990원", key=f"cat_{cat}",
-                         use_container_width=True):
+            # 1) 예쁜 카드(HTML)
+            st.markdown(
+                f"<div class='cat-card'><div class='cc-top'>"
+                f"<span class='cc-title'>{t}</span>"
+                f"<span class='cc-price'>990원</span></div>"
+                f"<div class='cc-desc'>{d}</div></div>",
+                unsafe_allow_html=True)
+            # 2) 카드 위에 겹치는 투명 버튼(카드 전체 클릭)
+            st.markdown("<div class='card-hit'>", unsafe_allow_html=True)
+            clicked = st.button(t, key=f"cat_{cat}", use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+            if clicked:
                 if not _has_profile:
                     st.warning("먼저 왼쪽에서 원국을 설정해 주세요.")
                 else:
