@@ -363,6 +363,62 @@ def reply(chat, user_text, tries=4):
             if i==tries-1: raise
             time.sleep(2*(i+1))
 
+# ---------- 990원 카테고리 리포트 (단발성) ----------
+def _gen_once(system, user, tries=4):
+    import time
+    from google.genai import types, errors
+    for i in range(tries):
+        try:
+            return _client().models.generate_content(
+                model=MODEL, contents=user,
+                config=types.GenerateContentConfig(system_instruction=system,
+                    temperature=0.7, max_output_tokens=4096)).text
+        except errors.ServerError:
+            if i==tries-1: raise
+            time.sleep(2*(i+1))
+
+_REPORT_SYS = ("당신은 20년 경력의 따뜻한 명리학 상담사 '동인'입니다. "
+    "아래 [계산 결과]는 정확한 만세력 엔진이 산출한 확정 데이터입니다. "
+    "절대 간지·십신·신살·대운·세운·길흉을 새로 계산하거나 지어내지 말고, 주어진 데이터만 근거로 설명하세요. "
+    "명리 용어는 괄호로 쉬운 뜻을 달아 초보자도 이해하게, 따뜻한 존댓말로 씁니다. "
+    "단정적 예언 대신 '유리한 기운·흐름'으로 부드럽게. 마크다운 볼드(**)는 쓰지 말고 "
+    "소제목과 줄바꿈으로 읽기 좋은 '리포트' 형식으로, 700자 안팎으로 완결되게(반드시 마지막에 "
+    "'💡 한 줄 요약'까지) 작성하세요. 정보가 부족한 부분은 합리적으로 가정해 진행하되, 가정한 점은 "
+    "한 줄로 밝혀주세요. 건강운은 의료 진단이 아닌 명리적 체질 경향으로 설명하고 끝에 병원 안내를 덧붙입니다.")
+
+def generate_report(category, form=None):
+    """카테고리 + 양식(form)으로 도구를 호출해 확정 데이터를 얻고, 리포트 텍스트를 생성한다.
+    category: 'taegil'|'timing'|'career'|'health'|'personality'|'compatibility'
+    form: 카테고리별 추가 입력 dict"""
+    form = form or {}
+    import datetime as _dt
+    if category=='taegil':
+        purpose=form.get('purpose'); ds=form.get('date_start'); de=form.get('date_end')
+        data=run_taegil(purpose, ds, de)
+        ask=f"[요청] {purpose} 목적으로 좋은 날짜를 봐주세요."
+    elif category=='timing':
+        purpose=form.get('purpose'); yrs=int(form.get('years',5))
+        data=run_timing_check(purpose, yrs)
+        ask=f"[요청] {purpose} 목적으로 향후 {yrs}년 중 좋은 시기를 봐주세요."
+    elif category=='career':
+        data=run_career(); ask="[요청] 타고난 직업 적성과 진로 방향을 봐주세요."
+    elif category=='health':
+        data=run_health(); ask="[요청] 타고난 건강운(체질 경향)을 봐주세요."
+    elif category=='personality':
+        data=run_personality(); ask="[요청] 타고난 성격과 기질을 봐주세요."
+    elif category=='compatibility':
+        data=run_compatibility(int(form['py']), int(form['pm']), int(form['pd']),
+                               form.get('pg',''), int(form.get('ph',-1)),
+                               bool(form.get('plunar',False)))
+        ask="[요청] 상대방과의 궁합을 봐주세요."
+    else:
+        return "지원하지 않는 항목입니다."
+    if isinstance(data, dict) and data.get('error'):
+        return f"죄송해요, {data['error']}"
+    import json as _j
+    user=f"{ask}\n\n[계산 결과]\n{_j.dumps(data, ensure_ascii=False, indent=2)}"
+    return _gen_once(_REPORT_SYS, user)
+
 # ---------- 터미널 데모 ----------
 if __name__ == "__main__":
     print("="*54); print("  🔮 AI 택일 상담 (대화형)"); print("="*54)
