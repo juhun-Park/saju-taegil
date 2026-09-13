@@ -15,6 +15,32 @@ except Exception:
     pass
 import agent  # 대화형 에이전트
 
+# ---------- 이미지 로더: 한 번만 리사이즈·압축 후 캐시 ----------
+@st.cache_data(show_spinner=False)
+def load_card_image(cat, size=240):
+    """images/dosa_{cat}.png 를 정사각 size로 줄이고 압축해 base64로 반환(캐시됨)."""
+    import base64, os, io
+    path = os.path.join("images", f"dosa_{cat}.png")
+    if not os.path.exists(path):
+        return ""
+    try:
+        from PIL import Image
+        img = Image.open(path).convert("RGB")
+        # 정사각형 중앙 크롭 후 축소
+        w, h = img.size
+        s = min(w, h)
+        img = img.crop(((w-s)//2, (h-s)//2, (w-s)//2+s, (h-s)//2+s)).resize((size, size))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=80, optimize=True)  # JPEG로 용량 대폭↓
+        return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        # Pillow 없거나 오류 시: 원본을 그대로(압축 없이) 반환
+        try:
+            with open(path, "rb") as f:
+                return "data:image/png;base64," + base64.b64encode(f.read()).decode()
+        except Exception:
+            return ""
+
 st.set_page_config(page_title="동인 — AI 사주 상담", page_icon="🀄", layout="wide",
                    initial_sidebar_state="expanded")
 
@@ -139,28 +165,31 @@ h1 { background:linear-gradient(135deg,#E8C874,#C5A05E 55%,#B22234); -webkit-bac
   box-shadow:0 10px 32px rgba(158,43,37,0.22);
 }
 .cat-card .cc-img{
-  width:100%; aspect-ratio:1/1; object-fit:cover; display:block;
+  width:100%; height:120px; object-fit:cover; display:block;
   border-bottom:1px solid rgba(255,255,255,0.06);
 }
-.cat-card .cc-body{ padding:14px 16px 16px; }
-.cat-card .cc-top{ display:flex; justify-content:space-between; align-items:center; }
-.cat-card .cc-title{ font-size:1.14rem; font-weight:800; color:#F5F0E4; letter-spacing:-0.01em; }
+.cat-card .cc-body{ padding:10px 12px 12px; }
+.cat-card .cc-top{ display:flex; justify-content:space-between; align-items:center; gap:6px; }
+.cat-card .cc-title{ font-size:0.98rem; font-weight:800; color:#F5F0E4; letter-spacing:-0.01em; }
 .cat-card .cc-price{
-  font-size:0.86rem; font-weight:800; color:#E8C874;
+  font-size:0.74rem; font-weight:800; color:#E8C874;
   background:rgba(197,160,94,0.12); border:1px solid rgba(197,160,94,0.35);
-  border-radius:999px; padding:3px 11px; white-space:nowrap; margin-left:8px;
+  border-radius:999px; padding:2px 8px; white-space:nowrap;
 }
-.cat-card .cc-desc{ margin-top:8px; color:#AEB6C2; font-size:0.9rem; line-height:1.45; }
+.cat-card .cc-desc{ margin-top:5px; color:#AEB6C2; font-size:0.78rem; line-height:1.4; }
 
-/* 카드 위에 겹쳐 카드 전체를 클릭되게 만드는 투명 버튼 */
-.card-hit .stButton > button{
-  position:absolute; bottom:0; left:0; width:100%; height:420px;
-  background:transparent !important; border:none !important; box-shadow:none !important;
-  color:transparent !important; z-index:3; margin:0 !important; padding:0 !important;
+/* 카드 아래 '보기' 버튼 — 카드와 자연스럽게 이어지게 */
+div[data-testid="column"] .stButton > button{
+  background:rgba(197,160,94,0.10) !important;
+  border:1px solid rgba(197,160,94,0.35) !important;
+  color:#E8C874 !important; font-weight:700 !important;
+  border-radius:12px !important; margin-top:-6px;
 }
-.card-hit{ position:relative; margin-top:-420px; height:420px; margin-bottom:14px;
-  pointer-events:none; }
-.card-hit .stButton{ pointer-events:auto; }
+div[data-testid="column"] .stButton > button:hover{
+  background:rgba(158,43,37,0.25) !important;
+  border-color:rgba(232,200,116,0.8) !important; color:#FFF3DA !important;
+  transform:translateY(-1px);
+}
 
 
 /* 텍스트 대비 강제 (모바일에서 글자가 배경에 묻히는 문제 해결) */
@@ -294,20 +323,12 @@ if "mode" not in st.session_state:
         ("🪞 성격·기질", "타고난 성격과 강점", "personality"),
         ("💞 궁합", "두 사람 사주로 보는 인연", "compatibility"),
     ]
-    import base64, os as _os
-    def _img_b64(cat):
-        path = _os.path.join("images", f"dosa_{cat}.png")
-        try:
-            with open(path, "rb") as f:
-                return "data:image/png;base64," + base64.b64encode(f.read()).decode()
-        except Exception:
-            return ""  # 이미지 없으면 빈 값
-    cols = st.columns(2)
+    cols = st.columns(3)
     for i,(t,d,cat) in enumerate(cards):
-        with cols[i%2]:
-            img = _img_b64(cat)
+        with cols[i%3]:
+            img = load_card_image(cat)
             img_html = (f"<img class='cc-img' src='{img}'/>" if img
-                        else "<div class='cc-img' style='display:flex;align-items:center;"
+                        else "<div class='cc-img' style='height:120px;display:flex;align-items:center;"
                              "justify-content:center;color:#5B6472;font-size:2rem'>🐶</div>")
             st.markdown(
                 f"<div class='cat-card'>{img_html}<div class='cc-body'>"
@@ -315,9 +336,7 @@ if "mode" not in st.session_state:
                 f"<span class='cc-price'>990원</span></div>"
                 f"<div class='cc-desc'>{d}</div></div></div>",
                 unsafe_allow_html=True)
-            st.markdown("<div class='card-hit'>", unsafe_allow_html=True)
-            clicked = st.button(t, key=f"cat_{cat}", use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
+            clicked = st.button(f"{t} 보기 →", key=f"cat_{cat}", use_container_width=True)
             if clicked:
                 if not _has_profile:
                     st.warning("먼저 왼쪽에서 원국을 설정해 주세요.")
