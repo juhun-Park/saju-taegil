@@ -157,26 +157,27 @@ h1 { background:linear-gradient(135deg,#E8C874,#C5A05E 55%,#B22234); -webkit-bac
   position:relative;
   background:rgba(255,255,255,0.045);
   border:1px solid rgba(255,255,255,0.09);
-  border-radius:20px; overflow:hidden;
+  border-radius:18px; overflow:hidden;
   transition:all .18s ease;
+  display:flex; align-items:stretch;   /* 가로 배치 */
 }
 .cat-card:hover{
-  border-color:rgba(197,160,94,0.6); transform:translateY(-4px);
-  box-shadow:0 10px 32px rgba(158,43,37,0.22);
+  border-color:rgba(197,160,94,0.6); transform:translateY(-3px);
+  box-shadow:0 8px 26px rgba(158,43,37,0.20);
 }
 .cat-card .cc-img{
-  width:100%; height:120px; object-fit:cover; display:block;
-  border-bottom:1px solid rgba(255,255,255,0.06);
+  width:104px; min-width:104px; height:104px; object-fit:cover; display:block;
+  border-right:1px solid rgba(255,255,255,0.06);
 }
-.cat-card .cc-body{ padding:10px 12px 12px; }
+.cat-card .cc-body{ padding:12px 14px; flex:1; display:flex; flex-direction:column; justify-content:center; }
 .cat-card .cc-top{ display:flex; justify-content:space-between; align-items:center; gap:6px; }
-.cat-card .cc-title{ font-size:0.98rem; font-weight:800; color:#F5F0E4; letter-spacing:-0.01em; }
+.cat-card .cc-title{ font-size:1.02rem; font-weight:800; color:#F5F0E4; letter-spacing:-0.01em; }
 .cat-card .cc-price{
-  font-size:0.74rem; font-weight:800; color:#E8C874;
+  font-size:0.76rem; font-weight:800; color:#E8C874;
   background:rgba(197,160,94,0.12); border:1px solid rgba(197,160,94,0.35);
-  border-radius:999px; padding:2px 8px; white-space:nowrap;
+  border-radius:999px; padding:2px 9px; white-space:nowrap;
 }
-.cat-card .cc-desc{ margin-top:5px; color:#AEB6C2; font-size:0.78rem; line-height:1.4; }
+.cat-card .cc-desc{ margin-top:5px; color:#AEB6C2; font-size:0.82rem; line-height:1.4; }
 
 /* 카드 아래 '보기' 버튼 — 카드와 자연스럽게 이어지게 */
 div[data-testid="column"] .stButton > button{
@@ -323,13 +324,13 @@ if "mode" not in st.session_state:
         ("🪞 성격·기질", "타고난 성격과 강점", "personality"),
         ("💞 궁합", "두 사람 사주로 보는 인연", "compatibility"),
     ]
-    cols = st.columns(3)
+    cols = st.columns(2)
     for i,(t,d,cat) in enumerate(cards):
-        with cols[i%3]:
+        with cols[i%2]:
             img = load_card_image(cat)
             img_html = (f"<img class='cc-img' src='{img}'/>" if img
-                        else "<div class='cc-img' style='height:120px;display:flex;align-items:center;"
-                             "justify-content:center;color:#5B6472;font-size:2rem'>🐶</div>")
+                        else "<div class='cc-img' style='display:flex;align-items:center;"
+                             "justify-content:center;color:#5B6472;font-size:1.6rem'>🐶</div>")
             st.markdown(
                 f"<div class='cat-card'>{img_html}<div class='cc-body'>"
                 f"<div class='cc-top'><span class='cc-title'>{t}</span>"
