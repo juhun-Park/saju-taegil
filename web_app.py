@@ -239,7 +239,9 @@ h1,h2,h3,h4,h5 { color:#F1F5F9; }
 
 /* 사이드바 토글 버튼(펼치기 »· 접기 «) 항상 눈에 잘 띄게 — 전 화면 공통 */
 [data-testid="stSidebarCollapsedControl"],
+[data-testid="stSidebarCollapsedControl"] button,
 [data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebarCollapseButton"] button,
 [data-testid="stSidebar"] button[kind="header"],
 [data-testid="baseButton-headerNoPadding"]{
   background:linear-gradient(135deg,#9E2B25,#7A1E1E) !important;
@@ -248,19 +250,21 @@ h1,h2,h3,h4,h5 { color:#F1F5F9; }
   box-shadow:0 2px 12px rgba(158,43,37,0.5) !important;
   opacity:1 !important; visibility:visible !important;
 }
-/* hover 아닐 때도 항상 보이도록 (기본은 hover 시에만 나타남) */
-[data-testid="stSidebarCollapsedControl"]{
-  opacity:1 !important; transform:none !important;
-}
+/* 아이콘(화살표) 밝은 금색·크게, 두 버튼 동일하게 */
 [data-testid="stSidebarCollapsedControl"] svg,
+[data-testid="stSidebarCollapsedControl"] button svg,
 [data-testid="stSidebarCollapseButton"] svg,
+[data-testid="stSidebarCollapseButton"] button svg,
 [data-testid="stSidebar"] button[kind="header"] svg{
   color:#FFF3DA !important; fill:#FFF3DA !important;
   width:24px !important; height:24px !important; opacity:1 !important;
 }
-/* 펼치기 버튼(>>): 사이드바 닫혔을 때 왼쪽 위에 크게 고정 */
+/* 펼치기 버튼(>>): 닫혔을 때 왼쪽 위에 고정 + 크기 확보 */
 [data-testid="stSidebarCollapsedControl"]{
   position:fixed !important; top:12px !important; left:12px !important; z-index:999 !important;
+  opacity:1 !important; transform:none !important;
+  width:44px !important; height:44px !important;
+  display:flex !important; align-items:center !important; justify-content:center !important;
 }
 
 /* 모바일 전용 보정 */
