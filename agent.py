@@ -364,6 +364,15 @@ def reply(chat, user_text, tries=4):
             time.sleep(2*(i+1))
 
 # ---------- 990원 카테고리 리포트 (단발성) ----------
+_REPORT_CLIENT = None
+def _client():
+    """리포트 생성용 Gemini 클라이언트(한 번만 생성해 재사용)."""
+    global _REPORT_CLIENT
+    if _REPORT_CLIENT is None:
+        from google import genai
+        _REPORT_CLIENT = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    return _REPORT_CLIENT
+
 def _gen_once(system, user, tries=4):
     import time
     from google.genai import types, errors
@@ -428,7 +437,7 @@ if __name__ == "__main__":
     p = pillars(datetime.date(y,m,d), int(hr) if hr else None)
     set_profile({'ganji':p['day'],'ilgan':p['day'][0],'ilji':p['day'][1]})
     print(f"→ 원국 {p['day']} 등록 완료. 편하게 말씀하세요. (엔터로 종료)\n")
-    _client, chat = new_chat()
+    _cl, chat = new_chat()
     while True:
         q = input("🙋 ").strip()
         if not q: print("\n상담을 마칩니다. 좋은 날 되세요! 🍀"); break
