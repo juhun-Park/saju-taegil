@@ -347,24 +347,39 @@ if "mode" not in st.session_state:
                     st.rerun()
 
     st.markdown("---")
-    st.markdown("#### 💬 무제한 채팅 상담  <span style='color:#E8C874;font-size:0.85rem'>9,900원</span>",
+    st.markdown("#### 💬 대화형 사주풀이  <span style='color:#E8C874;font-size:0.85rem'>9,900원 · 질문 15회</span>",
                 unsafe_allow_html=True)
-    st.markdown("<div class='qcard'><div class='d'>동인과 자유롭게 대화하며 여러 주제를 "
-                "깊이 있게 이어서 상담합니다. 리포트로 부족한 궁금증을 마음껏 풀어보세요.</div></div>",
+    st.markdown("<div class='qcard'><div class='d'>동인과 대화하듯 이어서 여쭤보는 상담이에요. "
+                "여러 주제를 넘나들며 궁금한 점을 질문 15회까지 깊이 있게 풀어드립니다.</div></div>",
                 unsafe_allow_html=True)
-    if st.button("💬 무제한 채팅 시작  ·  9,900원", key="start_chat",
+    if st.button("💬 대화형 사주풀이 시작  ·  9,900원", key="start_chat",
                  type="primary", use_container_width=True):
         if not _has_profile:
             st.warning("먼저 왼쪽에서 원국을 설정해 주세요.")
         else:
             st.session_state.mode = "chat"; st.rerun()
+
+    st.markdown("---")
+    st.markdown("#### 🧧 동인 직접 상담  <span style='color:#E8C874;font-size:0.85rem'>50,000원 · 50분</span>",
+                unsafe_allow_html=True)
+    st.markdown("<div class='qcard' style='border-color:rgba(197,160,94,0.35)'>"
+                "<div style='color:#E8C874;font-weight:700;margin-bottom:4px'>사람이 직접 봐드립니다</div>"
+                "<div class='d'>AI로 부족하셨다면, 실제 사주 경력자 <b>동인</b>이 1:1로 정성껏 봐드려요. "
+                "사주 종합 풀이 + 심층 질문 2개, 50분간 진행됩니다. 예약 후 진행돼요.</div></div>",
+                unsafe_allow_html=True)
+    if st.button("🧧 동인 직접 상담 예약하기  ·  50,000원", key="start_human",
+                 use_container_width=True):
+        if not _has_profile:
+            st.warning("먼저 왼쪽에서 원국을 설정해 주세요.")
+        else:
+            st.session_state.mode = "human"; st.rerun()
     st.stop()
 
 # 상단 뒤로가기
 top = st.container()
 with top:
     if st.button("← 처음으로", key="back"):
-        for k in ("mode","category","report","chat","messages","preset_cat"):
+        for k in ("mode","category","report","chat","messages","preset_cat","q_used","booked"):
             st.session_state.pop(k, None)
         st.rerun()
 
@@ -425,21 +440,26 @@ if st.session_state.mode == "report":
         st.markdown("<div style='padding:12px 16px;border-radius:12px;"
                     "background:rgba(158,43,37,0.12);border:1px solid rgba(197,160,94,0.35)'>"
                     "💬 더 깊이, 이어서 물어보고 싶으신가요?<br>"
-                    "<b>무제한 채팅 상담(9,900원)</b>에서 자유롭게 대화할 수 있어요.</div>",
+                    "<b>대화형 사주풀이(9,900원 · 질문 15회)</b>에서 대화하듯 이어갈 수 있어요.</div>",
                     unsafe_allow_html=True)
-        if st.button("무제한 채팅으로 이어가기", use_container_width=True):
+        if st.button("대화형 사주풀이로 이어가기", use_container_width=True):
             for k in ("mode","report"): st.session_state.pop(k, None)
             st.session_state.mode = "chat"; st.rerun()
 
-# ══════════ 모드 2: 무제한 채팅 (9,900원) ══════════
+# ══════════ 모드 2: 대화형 사주풀이 (9,900원 · 15회) ══════════
 elif st.session_state.mode == "chat":
-    st.markdown("### 💬 무제한 채팅 상담  <span style='color:#E8C874;font-size:0.9rem'>9,900원</span>",
+    LIMIT = 15
+    used = st.session_state.get("q_used", 0)
+    remain = LIMIT - used
+    st.markdown(f"### 💬 대화형 사주풀이  "
+                f"<span style='color:#E8C874;font-size:0.9rem'>남은 질문 {remain}회</span>",
                 unsafe_allow_html=True)
     if "chat" not in st.session_state:
         try:
             st.session_state.gemini_client, st.session_state.chat = agent.new_chat()
         except Exception as e:
             st.error(f"대화 세션 생성 실패: {e}"); st.stop()
+        st.session_state.q_used = 0; remain = LIMIT
         st.session_state.messages = [{"role":"assistant",
             "content":"안녕하세요, 동인입니다. 🀄 무엇이든 편하게 여쭤보세요.\n\n"
                       "📅 \"10월에 이사 좋은 날?\"  ·  🕰 \"내년에 이직해도 될까?\"\n"
@@ -448,15 +468,62 @@ elif st.session_state.mode == "chat":
     for m in st.session_state.messages:
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
-    q = st.chat_input("편하게 말씀하세요")
-    if q:
-        st.session_state.messages.append({"role":"user","content":q})
-        with st.chat_message("user"): st.markdown(q)
-        with st.chat_message("assistant"):
-            with st.spinner("생각하는 중…"):
-                try:
-                    text = agent.reply(st.session_state.chat, q)
-                except Exception as e:
-                    text = f"죄송해요, 문제가 생겼어요. 잠시 후 다시 시도해 주세요.\n\n`{e}`"
-            st.markdown(text)
-        st.session_state.messages.append({"role":"assistant","content":text})
+    if remain <= 0:
+        st.info("질문 15회를 모두 사용하셨어요. 더 깊은 상담이 필요하시면 "
+                "**🧧 동인 직접 상담(50,000원)**을 이용해 보세요.")
+        if st.button("🧧 동인 직접 상담 예약하기", use_container_width=True):
+            for k in ("mode","chat","messages","q_used"): st.session_state.pop(k, None)
+            st.session_state.mode = "human"; st.rerun()
+    else:
+        q = st.chat_input(f"편하게 말씀하세요 (남은 질문 {remain}회)")
+        if q:
+            st.session_state.messages.append({"role":"user","content":q})
+            with st.chat_message("user"): st.markdown(q)
+            with st.chat_message("assistant"):
+                with st.spinner("생각하는 중…"):
+                    try:
+                        text = agent.reply(st.session_state.chat, q)
+                    except Exception as e:
+                        text = f"죄송해요, 문제가 생겼어요. 잠시 후 다시 시도해 주세요.\n\n`{e}`"
+                st.markdown(text)
+            st.session_state.messages.append({"role":"assistant","content":text})
+            st.session_state.q_used = used + 1
+            st.rerun()
+
+# ══════════ 모드 3: 동인 직접 상담 예약 (50,000원) ══════════
+elif st.session_state.mode == "human":
+    st.markdown("### 🧧 동인 직접 상담 예약  <span style='color:#E8C874;font-size:0.9rem'>50,000원 · 50분</span>",
+                unsafe_allow_html=True)
+    st.markdown("<div class='qcard'><div class='d'>실제 사주 경력자 <b>동인</b>이 1:1로 봐드립니다.<br>"
+                "· 사주 종합 풀이 + 심층 질문 2개<br>· 진행 시간 50분<br>· 예약 확정 후 안내드려요</div></div>",
+                unsafe_allow_html=True)
+    st.write("")
+    if not st.session_state.get("booked"):
+        with st.form("booking"):
+            st.markdown("**예약 정보를 입력해 주세요**")
+            name = st.text_input("성함")
+            phone = st.text_input("연락처 (예: 010-1234-5678)")
+            c1, c2 = st.columns(2)
+            pref_date = c1.date_input("희망 날짜", value=datetime.date.today()+datetime.timedelta(days=2),
+                                      min_value=datetime.date.today())
+            pref_time = c2.selectbox("희망 시간대", ["오전 (10~12시)","오후 (13~17시)","저녁 (18~21시)"])
+            memo = st.text_area("미리 남기실 질문/메모 (선택)")
+            submitted = st.form_submit_button("예약 신청하고 결제하기 · 50,000원",
+                                              type="primary", use_container_width=True)
+        if submitted:
+            if not name or not phone:
+                st.warning("성함과 연락처를 입력해 주세요.")
+            else:
+                st.session_state.booked = {"name":name,"phone":phone,
+                    "date":str(pref_date),"time":pref_time,"memo":memo}
+                st.rerun()
+    else:
+        b = st.session_state.booked
+        st.success("예약 신청이 접수되었습니다! 🎉")
+        st.markdown(f"- 성함: {b['name']}\n- 연락처: {b['phone']}\n"
+                    f"- 희망 일시: {b['date']} · {b['time']}")
+        st.markdown("<div style='padding:12px 16px;border-radius:12px;margin-top:8px;"
+                    "background:rgba(158,43,37,0.12);border:1px solid rgba(197,160,94,0.35)'>"
+                    "💳 결제 안내와 최종 일정은 입력하신 연락처로 개별 안내드립니다.<br>"
+                    "<span style='color:#94A3B8;font-size:0.85rem'>(결제 시스템은 곧 연동될 예정입니다.)</span></div>",
+                    unsafe_allow_html=True)
