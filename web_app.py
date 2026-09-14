@@ -237,14 +237,25 @@ h1,h2,h3,h4,h5 { color:#F1F5F9; }
 /* 위젯 내부 값 텍스트도 밝게 */
 .stNumberInput input, .stDateInput input, .stSelectbox div { color:#E2E8F0 !important; }
 
+/* 사이드바 토글 버튼(펼치기 »· 접기 «) 눈에 잘 띄게 — 전 화면 공통 */
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebar"] button[kind="header"],
+[data-testid="baseButton-headerNoPadding"]{
+  background:linear-gradient(135deg,#9E2B25,#7A1E1E) !important;
+  border:1px solid rgba(232,200,116,0.8) !important;
+  border-radius:10px !important; padding:6px !important;
+  box-shadow:0 2px 10px rgba(158,43,37,0.4) !important;
+}
+[data-testid="stSidebarCollapsedControl"] svg,
+[data-testid="stSidebarCollapseButton"] svg,
+[data-testid="stSidebar"] button[kind="header"] svg{
+  color:#FFF3DA !important; fill:#FFF3DA !important;
+  width:22px !important; height:22px !important;
+}
+
 /* 모바일 전용 보정 */
 @media (max-width: 768px) {
-  /* 사이드바 열림 버튼을 눈에 띄게 */
-  [data-testid="stSidebarCollapsedControl"] {
-    background:linear-gradient(135deg,#9E2B25,#7A1E1E) !important;
-    border-radius:10px !important; padding:4px !important;
-  }
-  [data-testid="stSidebarCollapsedControl"] svg { color:#fff !important; }
   /* 본문 글자 살짝 키워 가독성 */
   .stApp p, .stApp li { font-size:0.98rem; line-height:1.6; }
   h1 { font-size:1.5rem !important; }
