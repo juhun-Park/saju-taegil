@@ -420,6 +420,15 @@ def generate_report(category, form=None):
                                form.get('pg',''), int(form.get('ph',-1)),
                                bool(form.get('plunar',False)))
         ask="[요청] 상대방과의 궁합을 봐주세요."
+    elif category=='pet':
+        data=run_pet(int(form['py']), int(form['pm']), int(form['pd']),
+                     form.get('pname','우리 아이'), int(form.get('ph',-1)),
+                     bool(form.get('plunar',False)))
+        if isinstance(data, dict) and data.get('error'):
+            return f"죄송해요, {data['error']}"
+        import json as _j2
+        user=f"[요청] {form.get('pname','우리 아이')}의 반려동물 사주를 재미로 봐주세요.\n\n[계산 결과]\n{_j2.dumps(data, ensure_ascii=False, indent=2)}"
+        return _gen_once(_PET_SYS, user)
     else:
         return "지원하지 않는 항목입니다."
     if isinstance(data, dict) and data.get('error'):
@@ -427,6 +436,52 @@ def generate_report(category, form=None):
     import json as _j
     user=f"{ask}\n\n[계산 결과]\n{_j.dumps(data, ensure_ascii=False, indent=2)}"
     return _gen_once(_REPORT_SYS, user)
+
+# ---------- 🐶 반려동물 사주 (재미용) ----------
+_PET_SYS = ("당신은 반려동물 사주를 재미있게 풀어주는 따뜻한 상담사 '동인'입니다. "
+    "아래 [계산 결과]는 만세력 엔진이 산출한 확정 데이터입니다. 간지·오행·궁합 수치를 새로 지어내지 말고 "
+    "주어진 데이터만 근거로 하세요. 단, 어디까지나 '재미로 보는' 콘텐츠임을 밝히고 가볍고 사랑스러운 톤으로 씁니다. "
+    "명리 용어는 괄호로 쉬운 뜻을 달고, 반려인이 미소 지을 만한 다정한 표현을 쓰세요. "
+    "다음 소제목 순서로 구성: '🐾 타고난 성격', '💪 건강 체질(재미로)', '💞 집사와의 궁합', '🍀 올해 기운'. "
+    "각 항목 2~4문장. 건강은 '이런 쪽을 좀 살펴봐 주면 좋아요' 정도로 가볍게(진료는 병원에서!). "
+    "마크다운 볼드(**) 없이, 700자 안팎으로 완결하고 마지막에 '💡 한 줄 요약'을 넣으세요. "
+    "맨 앞에 '※ 반려동물 사주는 재미로 보는 콘텐츠예요 🐶'를 한 줄 넣어 시작하세요.")
+
+def run_pet(pet_year: int, pet_month: int, pet_day: int,
+            pet_name: str = "우리 아이", pet_hour: int = -1, pet_is_lunar: bool = False) -> dict:
+    """반려동물 생년월일로 원국을 계산해 성격·건강·집사궁합·올해기운 데이터를 돌려준다.
+    집사(주인)의 원국은 _PROFILE에 등록돼 있어야 궁합이 계산된다."""
+    from taegil_engine import (pillars as _pil, health_tendency, ohaeng_distribution,
+                               compatibility, solar_from_lunar, analyze_strength, _lunar)
+    import datetime as _dt
+    try:
+        if pet_is_lunar:
+            pbd = solar_from_lunar(pet_year, pet_month, pet_day)
+        else:
+            pbd = _dt.date(pet_year, pet_month, pet_day)
+    except Exception:
+        return {"error": "반려동물 생년월일이 올바르지 않아요. 다시 확인해 주세요."}
+    ph = pet_hour if pet_hour is not None and pet_hour >= 0 else None
+    p = _pil(pbd, ph)
+    pet_ilgan, pet_ilji = p['day'][0], p['day'][1]
+    ht = health_tendency(pbd, ph)
+    st_info = analyze_strength(_lunar(pbd, ph).getEightChar())
+    out = {"이름": pet_name, "생일": pbd.isoformat(), "일주": p['day'],
+           "성격기운": st_info.get('판정'),
+           "오행분포": ht['분포'], "강한오행": ht['과다오행'], "약한오행": ht['부족오행']}
+    # 올해 기운(세운) — 일간 기준 그 해 간지와의 관계를 오행으로 간단히
+    this_year = _dt.date.today().year
+    se = _pil(_dt.date(this_year, 6, 1))['year']
+    out["올해_세운"] = se
+    # 집사와의 궁합 (등록된 주인 원국과)
+    if _PROFILE.get('_birth'):
+        mb = _PROFILE['_birth']
+        m_dist = health_tendency(_dt.date(mb[0], mb[1], mb[2]), mb[3], mb[4])['분포']
+        comp = compatibility(_PROFILE['ilgan'], _PROFILE['ilji'], m_dist,
+                             pet_ilgan, pet_ilji, ht['분포'])
+        out["집사궁합"] = {"판정": comp['판정'], "좋은점": comp['좋은점'], "주의점": comp['주의점'],
+                        "집사_일주": _PROFILE.get('ganji','')}
+    return out
 
 # ---------- 터미널 데모 ----------
 if __name__ == "__main__":
