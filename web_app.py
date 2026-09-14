@@ -322,6 +322,37 @@ with st.sidebar:
     st.markdown("<div style='color:#94A3B8;font-size:0.8rem;margin-bottom:6px'>볼 수 있는 사주</div>"
                 + chips, unsafe_allow_html=True)
 
+import streamlit.components.v1 as _components
+_components.html("""
+<style>
+  .dongin-menu-btn{
+    display:inline-flex; align-items:center; gap:8px;
+    background:linear-gradient(135deg,#9E2B25,#7A1E1E); color:#FFF3DA;
+    border:1px solid rgba(232,200,116,0.8); border-radius:12px;
+    padding:10px 16px; font-size:0.98rem; font-weight:800; cursor:pointer;
+    font-family:'Pretendard','Inter',sans-serif; box-shadow:0 2px 12px rgba(158,43,37,0.35);
+  }
+  .dongin-menu-btn:hover{ background:linear-gradient(135deg,#B22234,#8A2222); }
+</style>
+<button class="dongin-menu-btn" onclick="toggleSB()">☰ 사주 정보 입력 / 닫기</button>
+<script>
+  function toggleSB(){
+    const doc = window.parent.document;
+    // 접혀 있으면 펼치는 버튼, 펼쳐 있으면 접는 버튼을 찾아 클릭
+    const openBtn = doc.querySelector('[data-testid="stSidebarCollapsedControl"] button')
+                 || doc.querySelector('[data-testid="stSidebarCollapsedControl"]');
+    const closeBtn = doc.querySelector('[data-testid="stSidebarCollapseButton"] button')
+                  || doc.querySelector('[data-testid="stSidebarCollapseButton"]')
+                  || doc.querySelector('[data-testid="stSidebar"] button[kind="header"]');
+    const sb = doc.querySelector('[data-testid="stSidebar"]');
+    const visible = sb && sb.getBoundingClientRect().width > 30;
+    if(visible && closeBtn){ closeBtn.click(); }
+    else if(openBtn){ openBtn.click(); }
+    else if(closeBtn){ closeBtn.click(); }
+  }
+</script>
+""", height=56)
+
 st.markdown("<div style='display:flex;align-items:center;gap:12px'>"
             "<span style='display:inline-flex;align-items:center;justify-content:center;"
             "width:46px;height:46px;border-radius:8px;background:linear-gradient(135deg,#9E2B25,#7A1E1E);"
