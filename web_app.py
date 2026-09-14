@@ -183,6 +183,13 @@ input::placeholder, textarea::placeholder {
 }
 .cat-card .cc-desc{ margin-top:5px; color:#AEB6C2; font-size:0.82rem; line-height:1.4; }
 
+/* 홈·뒤로 내비 버튼 — 작고 수수하게 */
+div[data-testid="column"]:nth-of-type(1) .stButton > button[key="home"],
+div[data-testid="column"]:nth-of-type(2) .stButton > button[key="back"]{
+  background:rgba(255,255,255,0.05) !important;
+  border:1px solid rgba(255,255,255,0.12) !important;
+  color:#CBD5E1 !important; font-weight:600 !important;
+}
 /* 카드 아래 '보기' 버튼 — 카드와 자연스럽게 이어지게 */
 div[data-testid="column"] .stButton > button{
   background:rgba(197,160,94,0.10) !important;
@@ -380,11 +387,22 @@ if "mode" not in st.session_state:
     st.stop()
 
 # 상단 뒤로가기
-top = st.container()
-with top:
-    if st.button("← 처음으로", key="back"):
-        for k in ("mode","category","report","chat","messages","preset_cat","q_used","booked"):
-            st.session_state.pop(k, None)
+def _go_home():
+    # 원국(profile)·원국관련 정보는 유지, 진행 상태만 초기화
+    for k in ("mode","category","report","chat","messages","preset_cat","q_used","booked"):
+        st.session_state.pop(k, None)
+
+hc1, hc2, _sp = st.columns([1,1,6])
+with hc1:
+    if st.button("🏠 홈", key="home", use_container_width=True):
+        _go_home(); st.rerun()
+with hc2:
+    if st.button("← 뒤로", key="back", use_container_width=True):
+        # 리포트에서 결과를 보고 있으면 양식으로, 그 외에는 홈으로
+        if st.session_state.get("mode")=="report" and st.session_state.get("report"):
+            st.session_state.pop("report", None)
+        else:
+            _go_home()
         st.rerun()
 
 # ══════════ 모드 1: 카테고리 리포트 (990원) ══════════
