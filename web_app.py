@@ -535,7 +535,7 @@ elif st.session_state.mode == "human":
             c1, c2 = st.columns(2)
             pref_date = c1.date_input("희망 날짜", value=datetime.date.today()+datetime.timedelta(days=2),
                                       min_value=datetime.date.today())
-            pref_time = c2.selectbox("희망 시간대", ["오전 (10~12시)","오후 (13~17시)","저녁 (18~21시)"])
+            pref_time = c2.selectbox("희망 시간", [f"{h}:00" for h in range(10, 22)])
             memo = st.text_area("미리 남기실 질문/메모 (선택)",
                 placeholder="예시)\n"
                             "· 무엇이 궁금하신가요? (예: 올해 이직운, 결혼 시기, 사업 방향 등)\n"
