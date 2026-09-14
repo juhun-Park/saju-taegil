@@ -64,7 +64,7 @@ def load_card_image(cat, size=240):
             return ""
 
 st.set_page_config(page_title="동인 — AI 사주 상담", page_icon="🀄", layout="wide",
-                   initial_sidebar_state="expanded")
+                   initial_sidebar_state="collapsed")
 
 # ---------- 커스텀 테마 (Deep Midnight Navy + Gold + Glass) ----------
 st.markdown("""
@@ -276,26 +276,45 @@ h1,h2,h3,h4,h5 { color:#F1F5F9; }
 </style>
 """, unsafe_allow_html=True)
 
-with st.sidebar:
-    st.markdown("### 棟寅 · 사주 원국 설정")
+st.markdown("<div style='display:flex;align-items:center;gap:12px'>"
+            "<span style='display:inline-flex;align-items:center;justify-content:center;"
+            "width:46px;height:46px;border-radius:8px;background:linear-gradient(135deg,#9E2B25,#7A1E1E);"
+            "border:1px solid rgba(232,200,116,0.7);color:#F5E6C8;font-weight:800;font-size:0.95rem;"
+            "line-height:1.0;letter-spacing:-1px'>棟寅</span>"
+            "<h1 style='margin:0'>동인 · AI 사주 상담</h1></div>", unsafe_allow_html=True)
+st.markdown("<span style='color:#C5A05E;font-size:0.82rem'>● 명리 정밀 엔진 · 택일 · 시기운 · 적성 · 건강 · 성격 · 궁합</span>",
+            unsafe_allow_html=True)
+st.write("")
+
+# ---------- 원국 입력 (본문 상단, 접이식) ----------
+_has_pf = "profile" in st.session_state
+if _has_pf:
+    pr = st.session_state.profile
+    _label = f"🔧 내 사주 정보: {pr['ganji']} · {pr.get('gender','')}  (변경하려면 여기를 누르세요)"
+else:
+    _label = "🧭 여기를 눌러 먼저 사주 정보를 입력하세요"
+
+with st.expander(_label, expanded=not _has_pf):
     st.markdown("<span style='color:#94A3B8;font-size:0.85rem'>정밀한 분석을 위해 "
                 "대상자의 사주 정보를 입력하세요.</span>", unsafe_allow_html=True)
-    st.write("")
     today = datetime.date.today()
-    cal_type = st.radio("달력", ["양력", "음력", "음력(윤달)"], horizontal=True)
-    bd = st.date_input("생년월일", value=datetime.date(1990, 1, 1),
-                       min_value=datetime.date(1930, 1, 1), max_value=today,
-                       format="YYYY-MM-DD")
-    if cal_type != "양력":
-        st.caption("※ 입력한 날짜를 음력으로 보고 양력으로 자동 변환합니다.")
-    gender_label = st.radio("성별", ["남성", "여성"], horizontal=True)
-    know_time = st.checkbox("태어난 시각을 알아요", value=False)
-    hour_val, min_val = None, 0
-    if know_time:
-        c1, c2 = st.columns(2)
-        hour_val = c1.number_input("시 (0~23)", min_value=0, max_value=23, value=12)
-        min_val = c2.number_input("분 (0~59)", min_value=0, max_value=59, value=0)
-        st.caption("※ 진태양시(한국 −약32분) 자동 보정됩니다.")
+    ci1, ci2 = st.columns([1,1])
+    with ci1:
+        cal_type = st.radio("달력", ["양력", "음력", "음력(윤달)"], horizontal=True)
+        bd = st.date_input("생년월일", value=datetime.date(1990, 1, 1),
+                           min_value=datetime.date(1930, 1, 1), max_value=today,
+                           format="YYYY-MM-DD")
+        if cal_type != "양력":
+            st.caption("※ 입력한 날짜를 음력으로 보고 양력으로 자동 변환합니다.")
+    with ci2:
+        gender_label = st.radio("성별", ["남성", "여성"], horizontal=True)
+        know_time = st.checkbox("태어난 시각을 알아요", value=False)
+        hour_val, min_val = None, 0
+        if know_time:
+            hc1, hc2 = st.columns(2)
+            hour_val = hc1.number_input("시 (0~23)", min_value=0, max_value=23, value=12)
+            min_val = hc2.number_input("분 (0~59)", min_value=0, max_value=59, value=0)
+            st.caption("※ 진태양시(한국 −약32분) 자동 보정됩니다.")
     if st.button("원국 설정 / 변경", type="primary", use_container_width=True):
         h = int(hour_val) if know_time else None
         gender = 1 if gender_label == "남성" else 0
@@ -318,31 +337,16 @@ with st.sidebar:
                                     "strength": p.get("strength"),
                                     "_birth": (bd_solar.year, bd_solar.month, bd_solar.day,
                                                h, int(min_val))}
-        # 프로필 바뀌면 진행 상태 초기화
         for k in ("chat","messages","mode","category","report"):
             st.session_state.pop(k, None)
-        st.success("원국이 설정되었습니다. 오른쪽에서 상담을 시작하세요.")
-
+        st.rerun()
     if "profile" in st.session_state:
         pr = st.session_state.profile
-        line = f"원국: 일주 **{pr['ganji']}** (일간 {pr['ilgan']}) · {pr.get('gender','')}"
+        line = f"✅ 원국: 일주 **{pr['ganji']}** (일간 {pr['ilgan']}) · {pr.get('gender','')}"
         if pr.get("hour_pillar"):
-            line += f"\n\n시주: {pr['hour_pillar']}"
+            line += f" · 시주 {pr['hour_pillar']}"
         st.success(line)
-    st.divider()
-    feats = ["📅 택일", "🕰 시기운", "🧭 적성", "🩺 건강운", "🪞 성격", "💞 궁합"]
-    chips = "".join(f"<span class='chip'>{f}</span>" for f in feats)
-    st.markdown("<div style='color:#94A3B8;font-size:0.8rem;margin-bottom:6px'>볼 수 있는 사주</div>"
-                + chips, unsafe_allow_html=True)
-
-st.markdown("<div style='display:flex;align-items:center;gap:12px'>"
-            "<span style='display:inline-flex;align-items:center;justify-content:center;"
-            "width:46px;height:46px;border-radius:8px;background:linear-gradient(135deg,#9E2B25,#7A1E1E);"
-            "border:1px solid rgba(232,200,116,0.7);color:#F5E6C8;font-weight:800;font-size:0.95rem;"
-            "line-height:1.0;letter-spacing:-1px'>棟寅</span>"
-            "<h1 style='margin:0'>동인 · AI 사주 상담</h1></div>", unsafe_allow_html=True)
-st.markdown("<span style='color:#C5A05E;font-size:0.82rem'>● 명리 정밀 엔진 · 택일 · 시기운 · 적성 · 건강 · 성격 · 궁합</span>",
-            unsafe_allow_html=True)
+st.write("")
 st.write("")
 
 if not os.environ.get("GEMINI_API_KEY"):
@@ -364,8 +368,8 @@ if "mode" not in st.session_state:
     if not _has_profile:
         st.markdown("<div style='padding:10px 14px;border-radius:12px;margin-bottom:6px;"
                     "background:rgba(197,160,94,0.10);border:1px solid rgba(197,160,94,0.30);"
-                    "color:#E8C874;font-size:0.9rem'>👈 먼저 왼쪽에서 생년월일·성별을 입력하고 "
-                    "<b>원국 설정</b>을 눌러주세요. (휴대폰은 왼쪽 위 ‹ 화살표)</div>",
+                    "color:#E8C874;font-size:0.9rem'>👆 먼저 위에서 생년월일·성별을 입력하고 "
+                    "<b>원국 설정</b>을 눌러주세요.</div>",
                     unsafe_allow_html=True)
     else:
         pr = st.session_state.profile
@@ -400,7 +404,7 @@ if "mode" not in st.session_state:
             clicked = st.button(f"{t} 보기 →", key=f"cat_{cat}", use_container_width=True)
             if clicked:
                 if not _has_profile:
-                    st.warning("먼저 왼쪽에서 원국을 설정해 주세요.")
+                    st.warning("먼저 위에서 원국을 설정해 주세요.")
                 else:
                     st.session_state.mode = "report"
                     st.session_state.preset_cat = cat
@@ -415,7 +419,7 @@ if "mode" not in st.session_state:
     if st.button("💬 대화형 사주풀이 시작  ·  9,900원", key="start_chat",
                  type="primary", use_container_width=True):
         if not _has_profile:
-            st.warning("먼저 왼쪽에서 원국을 설정해 주세요.")
+            st.warning("먼저 위에서 원국을 설정해 주세요.")
         else:
             st.session_state.mode = "chat"; st.rerun()
 
@@ -430,7 +434,7 @@ if "mode" not in st.session_state:
     if st.button("🧧 동인 직접 상담 예약하기  ·  50,000원", key="start_human",
                  use_container_width=True):
         if not _has_profile:
-            st.warning("먼저 왼쪽에서 원국을 설정해 주세요.")
+            st.warning("먼저 위에서 원국을 설정해 주세요.")
         else:
             st.session_state.mode = "human"; st.rerun()
     st.stop()
@@ -498,7 +502,7 @@ if st.session_state.mode == "report":
         form["plunar"] = st.checkbox("생일이 음력이에요")
         if not form.get("pname"):
             form["pname"] = "우리 아이"
-        st.caption("※ 집사(주인)와의 궁합은 왼쪽에서 설정한 내 원국과 비교해 봐드려요.")
+        st.caption("※ 집사(주인)와의 궁합은 위에서 설정한 내 원국과 비교해 봐드려요.")
     else:
         st.info("이 항목은 이미 입력하신 사주 정보만으로 풀이해 드려요. 바로 진행하세요.")
 
@@ -586,8 +590,8 @@ elif st.session_state.mode == "human":
                 f"<div class='d'>· 생년월일: {birth_str} · {pr.get('gender','')}<br>"
                 f"· 원국: 일주 {pr.get('ganji','')} (일간 {pr.get('ilgan','')})"
                 + (f" · 시주 {pr.get('hour_pillar')}" if pr.get('hour_pillar') else "")
-                + "<br><span style='color:#94A3B8;font-size:0.82rem'>왼쪽 ‘원국 설정’에서 입력한 정보가 동인에게 함께 전달됩니다. "
-                  "잘못됐다면 왼쪽에서 다시 설정해 주세요.</span></div></div>",
+                + "<br><span style='color:#94A3B8;font-size:0.82rem'>위 ‘원국 설정’에서 입력한 정보가 동인에게 함께 전달됩니다. "
+                  "잘못됐다면 위에서 다시 설정해 주세요.</span></div></div>",
                 unsafe_allow_html=True)
     if not st.session_state.get("booked"):
         with st.form("booking"):
