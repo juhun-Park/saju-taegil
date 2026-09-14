@@ -15,6 +15,28 @@ except Exception:
     pass
 import agent  # 대화형 에이전트
 
+# 예약 접수용 Google Apps Script 웹앱 URL (Secrets에 넣으면 그걸 우선 사용)
+BOOKING_WEBHOOK = "https://script.google.com/macros/s/AKfycbx66nJHcgl_pmQGRjThrCRdbyl_HUFB2pN4Egzb1EgH5wXc9iQ9VqZUen-VPZt2hYqSDQ/exec"
+try:
+    if "BOOKING_WEBHOOK" in st.secrets:
+        BOOKING_WEBHOOK = st.secrets["BOOKING_WEBHOOK"]
+except Exception:
+    pass
+
+def send_booking_to_sheet(data):
+    """예약 정보를 구글 시트로 전송. 성공하면 True."""
+    import json, urllib.request
+    try:
+        req = urllib.request.Request(
+            BOOKING_WEBHOOK,
+            data=json.dumps(data).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        urllib.request.urlopen(req, timeout=10)
+        return True
+    except Exception:
+        return False
+
 # ---------- 이미지 로더: 한 번만 리사이즈·압축 후 캐시 ----------
 @st.cache_data(show_spinner=False)
 def load_card_image(cat, size=240):
@@ -549,15 +571,22 @@ elif st.session_state.mode == "human":
             if not name or not phone:
                 st.warning("성함과 연락처를 입력해 주세요.")
             else:
-                st.session_state.booked = {"name":name,"phone":phone,
+                booking = {"name":name,"phone":phone,
                     "date":str(pref_date),"time":pref_time,"memo":memo,
                     "birth":birth_str,"gender":pr.get('gender',''),
                     "ganji":pr.get('ganji',''),"ilgan":pr.get('ilgan',''),
                     "hour_pillar":pr.get('hour_pillar','')}
+                with st.spinner("예약을 접수하는 중…"):
+                    booking["_sent"] = send_booking_to_sheet(booking)
+                st.session_state.booked = booking
                 st.rerun()
     else:
         b = st.session_state.booked
-        st.success("예약 신청이 접수되었습니다! 🎉")
+        if b.get("_sent"):
+            st.success("예약 신청이 접수되었습니다! 🎉")
+        else:
+            st.warning("예약이 화면에는 접수됐지만, 서버 전송에 실패했을 수 있어요. "
+                       "확실히 하시려면 입력하신 연락처로 문의 부탁드립니다.")
         st.markdown(f"- 성함: {b['name']}\n- 연락처: {b['phone']}\n"
                     f"- 희망 일시: {b['date']} · {b['time']}\n"
                     f"- 사주 정보: {b.get('birth','')} · {b.get('gender','')} "
