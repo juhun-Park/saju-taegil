@@ -151,16 +151,7 @@ h1 { background:linear-gradient(135deg,#E8C874,#C5A05E 55%,#B22234); -webkit-bac
 .qcard .t { color:#F1F5F9; font-weight:700; font-size:1.02rem; margin-bottom:4px; }
 .qcard .d { color:#94A3B8; font-size:0.86rem; line-height:1.45; }
 .chat-input-hint { color:#64748B; font-size:0.82rem; }
-/* 로고를 버튼으로 — 제목처럼 보이게(배경/테두리 없음, 클릭 가능) */
-#logowrap .stButton > button{
-  background:transparent !important; border:none !important; box-shadow:none !important;
-  padding:2px 0 !important; margin:0 !important; height:auto !important;
-  font-size:1.9rem !important; font-weight:800 !important; letter-spacing:-0.02em;
-  color:#F5F0E4 !important; text-align:left !important;
-}
-#logowrap .stButton > button:hover{ opacity:0.85; transform:none !important; }
-#logowrap .stButton > button p{ font-size:1.9rem !important; font-weight:800 !important; }
-#logowrap{ margin-bottom:-6px; }
+
 /* 입력칸 예시(placeholder) 회색으로 잘 보이게 */
 input::placeholder, textarea::placeholder {
   color:#7A8394 !important; opacity:1 !important;
@@ -298,9 +289,12 @@ with st.sidebar:
     st.markdown("<div style='color:#94A3B8;font-size:0.8rem;margin-bottom:6px'>볼 수 있는 사주</div>"
                 + chips, unsafe_allow_html=True)
 
-st.markdown("<div id='logowrap'>", unsafe_allow_html=True)
-_logo_home = st.button("棟寅  동인 · AI 사주 상담", key="logo_home")
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("<div style='display:flex;align-items:center;gap:12px'>"
+            "<span style='display:inline-flex;align-items:center;justify-content:center;"
+            "width:46px;height:46px;border-radius:8px;background:linear-gradient(135deg,#9E2B25,#7A1E1E);"
+            "border:1px solid rgba(232,200,116,0.7);color:#F5E6C8;font-weight:800;font-size:0.95rem;"
+            "line-height:1.0;letter-spacing:-1px'>棟寅</span>"
+            "<h1 style='margin:0'>동인 · AI 사주 상담</h1></div>", unsafe_allow_html=True)
 st.markdown("<span style='color:#C5A05E;font-size:0.82rem'>● 명리 정밀 엔진 · 택일 · 시기운 · 적성 · 건강 · 성격 · 궁합</span>",
             unsafe_allow_html=True)
 st.write("")
@@ -399,18 +393,9 @@ def _go_home():
     for k in ("mode","category","report","chat","messages","preset_cat","q_used","booked"):
         st.session_state.pop(k, None)
 
-# 로고 클릭 시 홈으로 (원국 유지)
-if _logo_home:
-    _go_home(); st.rerun()
-
-bc1, _sp = st.columns([1,5])
-with bc1:
-    if st.button("← 뒤로", key="back", use_container_width=True):
-        if st.session_state.get("mode")=="report" and st.session_state.get("report"):
-            st.session_state.pop("report", None)
-        else:
-            _go_home()
-        st.rerun()
+if st.button("← 처음으로", key="back"):
+    _go_home()
+    st.rerun()
 
 # ══════════ 모드 1: 카테고리 리포트 (990원) ══════════
 if st.session_state.mode == "report":
