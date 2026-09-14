@@ -328,6 +328,7 @@ if not os.environ.get("GEMINI_API_KEY"):
 CATS = {
     "📅 택일": "taegil", "🕰 시기운": "timing", "🧭 적성": "career",
     "🩺 건강운": "health", "🪞 성격": "personality", "💞 궁합": "compatibility",
+    "🐶 반려동물": "pet",
 }
 PURPOSES = list(agent.PURPOSE_RULES.keys())
 _has_profile = "profile" in st.session_state
@@ -357,6 +358,7 @@ if "mode" not in st.session_state:
         ("🩺 건강운·체질", "오행 균형으로 보는 약한 장부", "health"),
         ("🪞 성격·기질", "타고난 성격과 강점", "personality"),
         ("💞 궁합", "두 사람 사주로 보는 인연", "compatibility"),
+        ("🐶 반려동물 사주", "우리 아이 성격·건강·집사궁합 (재미로!)", "pet"),
     ]
     cols = st.columns(2)
     for i,(t,d,cat) in enumerate(cards):
@@ -459,6 +461,20 @@ if st.session_state.mode == "report":
         pk = colE.checkbox("상대 시간 알아요")
         form["ph"] = st.number_input("상대 태어난 시(0~23)", 0, 23, 12) if pk else -1
         form["plunar"] = st.checkbox("상대 생일이 음력")
+    elif cat == "pet":
+        st.markdown("🐶 <b>반려동물 정보</b>  <span style='color:#94A3B8;font-size:0.82rem'>재미로 보는 콘텐츠예요!</span>",
+                    unsafe_allow_html=True)
+        form["pname"] = st.text_input("반려동물 이름", placeholder="예: 초코")
+        colA, colB, colC = st.columns(3)
+        form["py"] = colA.number_input("태어난 연", min_value=2000, max_value=datetime.date.today().year, value=2020)
+        form["pm"] = colB.number_input("월", min_value=1, max_value=12, value=1)
+        form["pd"] = colC.number_input("일", min_value=1, max_value=31, value=1)
+        pk = st.checkbox("태어난 시간을 알아요 (모르면 비워두세요)")
+        form["ph"] = st.number_input("태어난 시(0~23)", 0, 23, 12) if pk else -1
+        form["plunar"] = st.checkbox("생일이 음력이에요")
+        if not form.get("pname"):
+            form["pname"] = "우리 아이"
+        st.caption("※ 집사(주인)와의 궁합은 왼쪽에서 설정한 내 원국과 비교해 봐드려요.")
     else:
         st.info("이 항목은 이미 입력하신 사주 정보만으로 풀이해 드려요. 바로 진행하세요.")
 
