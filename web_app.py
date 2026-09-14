@@ -237,21 +237,30 @@ h1,h2,h3,h4,h5 { color:#F1F5F9; }
 /* 위젯 내부 값 텍스트도 밝게 */
 .stNumberInput input, .stDateInput input, .stSelectbox div { color:#E2E8F0 !important; }
 
-/* 사이드바 토글 버튼(펼치기 »· 접기 «) 눈에 잘 띄게 — 전 화면 공통 */
+/* 사이드바 토글 버튼(펼치기 »· 접기 «) 항상 눈에 잘 띄게 — 전 화면 공통 */
 [data-testid="stSidebarCollapsedControl"],
 [data-testid="stSidebarCollapseButton"],
 [data-testid="stSidebar"] button[kind="header"],
 [data-testid="baseButton-headerNoPadding"]{
   background:linear-gradient(135deg,#9E2B25,#7A1E1E) !important;
-  border:1px solid rgba(232,200,116,0.8) !important;
+  border:1px solid rgba(232,200,116,0.85) !important;
   border-radius:10px !important; padding:6px !important;
-  box-shadow:0 2px 10px rgba(158,43,37,0.4) !important;
+  box-shadow:0 2px 12px rgba(158,43,37,0.5) !important;
+  opacity:1 !important; visibility:visible !important;
+}
+/* hover 아닐 때도 항상 보이도록 (기본은 hover 시에만 나타남) */
+[data-testid="stSidebarCollapsedControl"]{
+  opacity:1 !important; transform:none !important;
 }
 [data-testid="stSidebarCollapsedControl"] svg,
 [data-testid="stSidebarCollapseButton"] svg,
 [data-testid="stSidebar"] button[kind="header"] svg{
   color:#FFF3DA !important; fill:#FFF3DA !important;
-  width:22px !important; height:22px !important;
+  width:24px !important; height:24px !important; opacity:1 !important;
+}
+/* 펼치기 버튼(>>): 사이드바 닫혔을 때 왼쪽 위에 크게 고정 */
+[data-testid="stSidebarCollapsedControl"]{
+  position:fixed !important; top:12px !important; left:12px !important; z-index:999 !important;
 }
 
 /* 모바일 전용 보정 */
@@ -321,37 +330,6 @@ with st.sidebar:
     chips = "".join(f"<span class='chip'>{f}</span>" for f in feats)
     st.markdown("<div style='color:#94A3B8;font-size:0.8rem;margin-bottom:6px'>볼 수 있는 사주</div>"
                 + chips, unsafe_allow_html=True)
-
-import streamlit.components.v1 as _components
-_components.html("""
-<style>
-  .dongin-menu-btn{
-    display:inline-flex; align-items:center; gap:8px;
-    background:linear-gradient(135deg,#9E2B25,#7A1E1E); color:#FFF3DA;
-    border:1px solid rgba(232,200,116,0.8); border-radius:12px;
-    padding:10px 16px; font-size:0.98rem; font-weight:800; cursor:pointer;
-    font-family:'Pretendard','Inter',sans-serif; box-shadow:0 2px 12px rgba(158,43,37,0.35);
-  }
-  .dongin-menu-btn:hover{ background:linear-gradient(135deg,#B22234,#8A2222); }
-</style>
-<button class="dongin-menu-btn" onclick="toggleSB()">☰ 사주 정보 입력 / 닫기</button>
-<script>
-  function toggleSB(){
-    const doc = window.parent.document;
-    // 접혀 있으면 펼치는 버튼, 펼쳐 있으면 접는 버튼을 찾아 클릭
-    const openBtn = doc.querySelector('[data-testid="stSidebarCollapsedControl"] button')
-                 || doc.querySelector('[data-testid="stSidebarCollapsedControl"]');
-    const closeBtn = doc.querySelector('[data-testid="stSidebarCollapseButton"] button')
-                  || doc.querySelector('[data-testid="stSidebarCollapseButton"]')
-                  || doc.querySelector('[data-testid="stSidebar"] button[kind="header"]');
-    const sb = doc.querySelector('[data-testid="stSidebar"]');
-    const visible = sb && sb.getBoundingClientRect().width > 30;
-    if(visible && closeBtn){ closeBtn.click(); }
-    else if(openBtn){ openBtn.click(); }
-    else if(closeBtn){ closeBtn.click(); }
-  }
-</script>
-""", height=56)
 
 st.markdown("<div style='display:flex;align-items:center;gap:12px'>"
             "<span style='display:inline-flex;align-items:center;justify-content:center;"
