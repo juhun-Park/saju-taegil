@@ -151,6 +151,10 @@ h1 { background:linear-gradient(135deg,#E8C874,#C5A05E 55%,#B22234); -webkit-bac
 .qcard .t { color:#F1F5F9; font-weight:700; font-size:1.02rem; margin-bottom:4px; }
 .qcard .d { color:#94A3B8; font-size:0.86rem; line-height:1.45; }
 .chat-input-hint { color:#64748B; font-size:0.82rem; }
+/* 입력칸 예시(placeholder) 회색으로 잘 보이게 */
+input::placeholder, textarea::placeholder {
+  color:#7A8394 !important; opacity:1 !important;
+}
 
 /* ===== 클릭 가능한 이미지 카테고리 카드 ===== */
 .cat-card{
@@ -498,16 +502,37 @@ elif st.session_state.mode == "human":
                 "· 사주 종합 풀이 + 심층 질문 2개<br>· 진행 시간 50분<br>· 예약 확정 후 안내드려요</div></div>",
                 unsafe_allow_html=True)
     st.write("")
+    pr = st.session_state.profile
+    # 왼쪽에서 설정한 사주 정보를 예약에 자동 포함
+    _birth = pr.get("_birth")
+    birth_str = "미입력"
+    if _birth:
+        y,m,d,hh,mi = _birth
+        birth_str = f"{y}년 {m}월 {d}일" + (f" {hh:02d}:{mi:02d}" if hh is not None else " (시간 미입력)")
+    st.markdown("<div class='qcard' style='border-color:rgba(197,160,94,0.35)'>"
+                "<div style='color:#E8C874;font-weight:700;margin-bottom:4px'>📌 상담에 전달될 내 사주 정보</div>"
+                f"<div class='d'>· 생년월일: {birth_str} · {pr.get('gender','')}<br>"
+                f"· 원국: 일주 {pr.get('ganji','')} (일간 {pr.get('ilgan','')})"
+                + (f" · 시주 {pr.get('hour_pillar')}" if pr.get('hour_pillar') else "")
+                + "<br><span style='color:#94A3B8;font-size:0.82rem'>왼쪽 ‘원국 설정’에서 입력한 정보가 동인에게 함께 전달됩니다. "
+                  "잘못됐다면 왼쪽에서 다시 설정해 주세요.</span></div></div>",
+                unsafe_allow_html=True)
     if not st.session_state.get("booked"):
         with st.form("booking"):
             st.markdown("**예약 정보를 입력해 주세요**")
-            name = st.text_input("성함")
-            phone = st.text_input("연락처 (예: 010-1234-5678)")
+            name = st.text_input("성함", placeholder="예: 홍길동")
+            phone = st.text_input("연락처", placeholder="예: 010-1234-5678")
             c1, c2 = st.columns(2)
             pref_date = c1.date_input("희망 날짜", value=datetime.date.today()+datetime.timedelta(days=2),
                                       min_value=datetime.date.today())
             pref_time = c2.selectbox("희망 시간대", ["오전 (10~12시)","오후 (13~17시)","저녁 (18~21시)"])
-            memo = st.text_area("미리 남기실 질문/메모 (선택)")
+            memo = st.text_area("미리 남기실 질문/메모 (선택)",
+                placeholder="예시)\n"
+                            "· 무엇이 궁금하신가요? (예: 올해 이직운, 결혼 시기, 사업 방향 등)\n"
+                            "· 심층 질문 2가지를 미리 정리해 주시면 상담이 더 깊어집니다.\n"
+                            "· 특별히 걱정되거나 상황이 있다면 자유롭게 적어주세요.\n"
+                            "  (예: 3년째 이직을 고민 중이고, 지금 자리가 맞는지 알고 싶어요)",
+                height=140)
             submitted = st.form_submit_button("예약 신청하고 결제하기 · 50,000원",
                                               type="primary", use_container_width=True)
         if submitted:
@@ -515,13 +540,20 @@ elif st.session_state.mode == "human":
                 st.warning("성함과 연락처를 입력해 주세요.")
             else:
                 st.session_state.booked = {"name":name,"phone":phone,
-                    "date":str(pref_date),"time":pref_time,"memo":memo}
+                    "date":str(pref_date),"time":pref_time,"memo":memo,
+                    "birth":birth_str,"gender":pr.get('gender',''),
+                    "ganji":pr.get('ganji',''),"ilgan":pr.get('ilgan',''),
+                    "hour_pillar":pr.get('hour_pillar','')}
                 st.rerun()
     else:
         b = st.session_state.booked
         st.success("예약 신청이 접수되었습니다! 🎉")
         st.markdown(f"- 성함: {b['name']}\n- 연락처: {b['phone']}\n"
-                    f"- 희망 일시: {b['date']} · {b['time']}")
+                    f"- 희망 일시: {b['date']} · {b['time']}\n"
+                    f"- 사주 정보: {b.get('birth','')} · {b.get('gender','')} "
+                    f"(일주 {b.get('ganji','')})")
+        if b.get("memo"):
+            st.markdown(f"- 남기신 질문/메모:\n\n> {b['memo']}")
         st.markdown("<div style='padding:12px 16px;border-radius:12px;margin-top:8px;"
                     "background:rgba(158,43,37,0.12);border:1px solid rgba(197,160,94,0.35)'>"
                     "💳 결제 안내와 최종 일정은 입력하신 연락처로 개별 안내드립니다.<br>"
