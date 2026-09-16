@@ -157,11 +157,10 @@ def run_health() -> dict:
     """
     if not _PROFILE:
         return {"error": "사용자 사주가 아직 등록되지 않았습니다."}
-    from taegil_engine import health_tendency
+    from taegil_engine import health_tendency, health_timeline
     import datetime as _dt, json as _j
     bd=_PROFILE.get('_birth')  # (y,m,d,h,minute) 저장돼 있으면 사용
     if not bd:
-        # 원국 재구성이 어려우면 일간 오행만으로 축약
         return {"error": "생년월일 정보가 부족합니다."}
     y,m,d,h,mi=bd
     ht=health_tendency(_dt.date(y,m,d), h, mi)
@@ -171,12 +170,27 @@ def run_health() -> dict:
             HDB=_j.load(f)
     except Exception:
         HDB={}
+    try:
+        with open("sinsal_disease.json", encoding="utf-8") as f:
+            SDB=_j.load(f)
+    except Exception:
+        SDB={}
     def detail(oh, kind):
         e=HDB.get(oh, {})
         return {"오행":oh, "증상경향":e.get(kind,""), "예방":e.get("예방",[])}
+    # 향후 5년 건강 주의 시기
+    tl=health_timeline(_dt.date(y,m,d), h, mi, years=5)
+    timeline=[]
+    for r in tl['timeline']:
+        item={"연도":r['year'],"세운":r['sewoon'],"수준":r['level'],"근거":r['flags']}
+        if r['신살'] in SDB:
+            item["신살질병경향"]=SDB[r['신살']]
+        timeline.append(item)
     return {"오행분포":ht['분포'],
             "과다_주의": [detail(o,'강하면') for o in ht['과다오행']],
             "부족_주의": [detail(o,'약하면') for o in ht['부족오행']],
+            "건강주의시기": timeline,
+            "주의연도": tl['주의연도'],
             "안내":"명리적 체질 경향이며 의료 진단이 아님"}
 
 def run_personality() -> dict:
@@ -393,7 +407,10 @@ _REPORT_SYS = ("당신은 20년 경력의 따뜻한 명리학 상담사 '동인'
     "단정적 예언 대신 '유리한 기운·흐름'으로 부드럽게. 마크다운 볼드(**)는 쓰지 말고 "
     "소제목과 줄바꿈으로 읽기 좋은 '리포트' 형식으로, 700자 안팎으로 완결되게(반드시 마지막에 "
     "'💡 한 줄 요약'까지) 작성하세요. 정보가 부족한 부분은 합리적으로 가정해 진행하되, 가정한 점은 "
-    "한 줄로 밝혀주세요. 건강운은 의료 진단이 아닌 명리적 체질 경향으로 설명하고 끝에 병원 안내를 덧붙입니다.")
+    "한 줄로 밝혀주세요. 건강운은 의료 진단이 아닌 명리적 체질 경향으로 설명하고 끝에 병원 안내를 덧붙입니다. "
+    "건강 리포트에 '건강주의시기'가 있으면, '언제 조심해야 하는지'를 회피하지 말고 그 데이터로 "
+    "구체적인 연도(예: 2027년)와 이유(오행 겹침·신살)를 들어 '🗓 조심할 시기' 항목으로 꼭 설명하세요. "
+    "'기능이 없다'는 식으로 답하지 마세요.")
 
 def generate_report(category, form=None):
     """카테고리 + 양식(form)으로 도구를 호출해 확정 데이터를 얻고, 리포트 텍스트를 생성한다.
