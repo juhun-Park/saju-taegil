@@ -238,6 +238,14 @@ h1 { background:linear-gradient(135deg,#E8C874,#C5A05E 55%,#B22234); -webkit-bac
 .qcard .t { color:#F1F5F9; font-weight:700; font-size:1.02rem; margin-bottom:4px; }
 .qcard .d { color:#94A3B8; font-size:0.86rem; line-height:1.45; }
 .chat-input-hint { color:#64748B; font-size:0.82rem; }
+/* 리포트 소제목(###)을 금색·굵게·여백으로 가독성 up */
+.stMarkdown h3 {
+  color:#E8C874 !important; font-weight:800 !important;
+  margin-top:1.4em !important; margin-bottom:0.4em !important;
+  padding-bottom:0.25em; border-bottom:1px solid rgba(197,160,94,0.25);
+  font-size:1.15rem !important;
+}
+.stMarkdown p { line-height:1.75 !important; margin-bottom:0.7em; }
 
 /* 입력칸 예시(placeholder) 회색으로 잘 보이게 */
 input::placeholder, textarea::placeholder {
