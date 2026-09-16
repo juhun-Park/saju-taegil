@@ -412,12 +412,60 @@ _REPORT_SYS = ("당신은 20년 경력의 따뜻한 명리학 상담사 '동인'
     "구체적인 연도(예: 2027년)와 이유(오행 겹침·신살)를 들어 '🗓 조심할 시기' 항목으로 꼭 설명하세요. "
     "'기능이 없다'는 식으로 답하지 마세요.")
 
+# 개별 카테고리용 — 더 깊고 자세하게 (분량 크게)
+_DEEP_SYS = _REPORT_SYS.replace(
+    "700자 안팎으로 완결되게",
+    "900~1100자로 아주 자세하고 깊이 있게(항목마다 근거·해석·실천 조언을 충분히 풀어)") + \
+    " 이 리포트는 '개별 심화 상품'이므로, 맛보기가 아니라 그 주제 하나를 전문가처럼 깊게 파고들어 " \
+    "구체적 사례·상황 묘사·개운법(보완 방법)까지 풍부하게 담아 만족도를 높이세요."
+
+# 종합(맛보기)용 — 여러 주제를 짧게, 아코디언 항목 형식으로
+_OVERVIEW_SYS = ("당신은 20년 경력의 따뜻한 명리학 상담사 '동인'입니다. "
+    "아래 [계산 결과]는 정확한 만세력 엔진이 산출한 확정 데이터입니다. 간지·십신·신살·대운·세운·오행을 "
+    "새로 지어내지 말고 주어진 데이터만 근거로 하세요. 이건 '종합 맛보기 리포트'입니다. "
+    "아래 항목들을 각각 짧게(항목당 2~3문장) 다루되, 반드시 정확히 이 형식으로 출력하세요:\n"
+    "각 항목을 '### 감성제목 | 소주제' 형태의 제목 줄로 시작하고, 다음 줄에 해석을 씁니다.\n"
+    "감성제목은 문학적이고 궁금증을 자아내게(예: '황금 밭에 놓인 촛불'). 소주제는 실제 주제명(총평/성격/재물/연애/직업/건강/올해운).\n"
+    "다룰 항목 순서: 1)총평 2)타고난 성격 3)재물운 4)연애·인연 5)직업·적성 6)건강 체질 7)올해 기운.\n"
+    "명리 용어는 괄호로 쉬운 뜻을 달고, 따뜻한 존댓말로. 단정적 예언 대신 '유리한 기운·흐름'으로. "
+    "각 항목은 맛보기라 깊이 들어가지 말고 핵심만. 마지막에 '### 💡 더 자세히 | 안내' 제목으로 "
+    "'각 주제는 개별 사주풀이(택일·궁합·건강운 등)에서 더 깊이 볼 수 있고, 진짜 궁금한 점은 동인 직접 상담(50,000원)으로 "
+    "확인하실 수 있어요'라고 한 줄 안내하세요. 마크다운 볼드(**)는 쓰지 마세요.")
+
+def _build_overview_data():
+    """종합용: 여러 도구 결과를 한 번에 모음."""
+    import datetime as _dt
+    out={}
+    try: out['성격']=run_personality()
+    except Exception: pass
+    try: out['건강']=run_health()
+    except Exception: pass
+    try: out['적성']=run_career()
+    except Exception: pass
+    # 재물·연애·직업 시기 흐름(올해 중심)
+    try: out['직업시기']=run_timing_check('이직/취업', 3)
+    except Exception: pass
+    if _PROFILE.get('strength'):
+        out['신강약']=_PROFILE['strength'].get('판정')
+        out['용신']=_PROFILE['strength'].get('용신방향')
+    if _PROFILE.get('daeun_current'):
+        out['현재대운']=_PROFILE['daeun_current'].get('ganzhi')
+    out['원국']={'일주':_PROFILE.get('ganji'),'일간':_PROFILE.get('ilgan'),'성별':_PROFILE.get('gender')}
+    return out
+
 def generate_report(category, form=None):
     """카테고리 + 양식(form)으로 도구를 호출해 확정 데이터를 얻고, 리포트 텍스트를 생성한다.
-    category: 'taegil'|'timing'|'career'|'health'|'personality'|'compatibility'
+    category: 'overview'|'taegil'|'timing'|'career'|'health'|'personality'|'compatibility'|'pet'
     form: 카테고리별 추가 입력 dict"""
     form = form or {}
     import datetime as _dt
+    if category=='overview':
+        if not _PROFILE:
+            return "먼저 사주 정보를 입력해 주세요."
+        data=_build_overview_data()
+        import json as _jo
+        user=f"[요청] 이 분의 사주를 종합적으로 맛보기 형식으로 봐주세요.\n\n[계산 결과]\n{_jo.dumps(data, ensure_ascii=False, indent=2, default=str)}"
+        return _gen_once(_OVERVIEW_SYS, user)
     if category=='taegil':
         purpose=form.get('purpose'); ds=form.get('date_start'); de=form.get('date_end')
         data=run_taegil(purpose, ds, de)
@@ -452,7 +500,9 @@ def generate_report(category, form=None):
         return f"죄송해요, {data['error']}"
     import json as _j
     user=f"{ask}\n\n[계산 결과]\n{_j.dumps(data, ensure_ascii=False, indent=2)}"
-    return _gen_once(_REPORT_SYS, user)
+    # 택일은 날짜 위주라 기존 톤, 나머지 개별은 심화(_DEEP_SYS)
+    sys = _REPORT_SYS if category=='taegil' else _DEEP_SYS
+    return _gen_once(sys, user)
 
 # ---------- 🐶 반려동물 사주 (재미용) ----------
 _PET_SYS = ("당신은 반려동물 사주를 재미있게 풀어주는 따뜻한 상담사 '동인'입니다. "
