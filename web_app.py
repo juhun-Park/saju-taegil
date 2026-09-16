@@ -53,7 +53,7 @@ def _ensure_font():
     except Exception:
         return None
 
-def make_report_pdf(title, body_text, dosa_img=None):
+def make_report_pdf(title, body_text):
     """리포트를 크림 배경 브랜드 PDF(bytes)로. 실패 시 None."""
     import re, os
     try:
@@ -65,34 +65,41 @@ def make_report_pdf(title, body_text, dosa_img=None):
         return None
     def strip_emoji(s):
         return re.sub(r'[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF\u2190-\u21FF\u2B00-\u2BFF\uFE0F]', '', s)
-    pdf = FPDF(format="A4"); pdf.add_page()
-    pdf.add_font("KR", "", font); pdf.add_font("KR", "B", font)
     CREAM=(250,246,238); INK=(35,32,28); GOLD=(150,115,40); RED=(150,43,37)
-    pdf.set_fill_color(*CREAM); pdf.rect(0,0,210,297,'F')
-    pdf.set_fill_color(*RED); pdf.rect(0,0,210,24,'F')
-    pdf.set_xy(12,6); pdf.set_font("KR","B",15); pdf.set_text_color(245,230,200)
-    pdf.cell(0,11,"棟寅  동인 · AI 사주 상담"); pdf.ln(20)
-    if dosa_img and os.path.exists(dosa_img):
-        try: pdf.image(dosa_img, x=162, y=29, w=36, h=36)
-        except Exception: pass
-    pdf.set_xy(12,32); pdf.set_font("KR","B",17); pdf.set_text_color(*RED)
-    pdf.multi_cell(140,9, strip_emoji(title).strip()); pdf.ln(1)
+
+    class Doc(FPDF):
+        def header(self):
+            self.set_fill_color(*CREAM); self.rect(0,0,210,297,'F')
+            self.set_fill_color(*RED); self.rect(0,0,210,22,'F')
+            self.set_xy(12,5); self.set_font("KR","B",14); self.set_text_color(245,230,200)
+            self.cell(0,11,"棟寅  동인 · AI 사주 상담")
+            self.set_y(28)
+        def footer(self):
+            self.set_y(-14); self.set_font("KR","",8); self.set_text_color(150,140,120)
+            self.set_x(12); self.cell(0,6,"동인 · AI 사주 상담   |   재미로 보는 명리 콘텐츠")
+
+    pdf = Doc(format="A4")
+    pdf.add_font("KR", "", font); pdf.add_font("KR", "B", font)
+    pdf.set_auto_page_break(True, margin=18)   # 자동 줄바꿈으로 페이지 넘김
+    pdf.set_left_margin(12); pdf.set_right_margin(12)
+    pdf.add_page()
+
+    # 리포트 제목
+    pdf.set_font("KR","B",17); pdf.set_text_color(*RED)
+    pdf.multi_cell(0,9, strip_emoji(title).strip()); pdf.ln(1)
     pdf.set_draw_color(*GOLD); pdf.set_line_width(0.6)
-    pdf.line(12,pdf.get_y()+1,198,pdf.get_y()+1); pdf.ln(6)
+    pdf.line(12,pdf.get_y()+1,198,pdf.get_y()+1); pdf.ln(5)
+
     for raw in body_text.split("\n"):
         line=strip_emoji(raw).rstrip()
         if not line.strip(): pdf.ln(2.5); continue
         m=re.match(r'^#{1,6}\s*(.+)', line)
-        if pdf.get_y()>265:
-            pdf.add_page(); pdf.set_fill_color(*CREAM); pdf.rect(0,0,210,297,'F')
         if m:
             pdf.ln(2); pdf.set_font("KR","B",12.5); pdf.set_text_color(*RED)
-            pdf.set_x(12); pdf.multi_cell(186,7,m.group(1).strip()); pdf.ln(0.5)
+            pdf.multi_cell(0,7,m.group(1).strip()); pdf.ln(0.5)
         else:
             pdf.set_font("KR","",10.8); pdf.set_text_color(*INK)
-            pdf.set_x(12); pdf.multi_cell(186,6.3,line)
-    pdf.set_y(-15); pdf.set_font("KR","",8); pdf.set_text_color(150,140,120)
-    pdf.set_x(12); pdf.cell(0,6,"동인 · AI 사주 상담   |   재미로 보는 명리 콘텐츠")
+            pdf.multi_cell(0,6.3,line)
     return bytes(pdf.output())
 
 # ---------- 이미지 로더: 한 번만 리사이즈·압축 후 캐시 ----------
@@ -596,18 +603,16 @@ if st.session_state.mode == "report":
         st.markdown("---")
         st.markdown(st.session_state.report)
         st.markdown("---")
-        # 📄 PDF 저장
-        import os as _os
-        _dosa = _os.path.join("images", f"dosa_{cat}.png")
-        _title = f"내 사주 {cat_label.split(' ',1)[-1] if ' ' in cat_label else cat_label}풀이"
+        # 📄 PDF 저장 — 제목/파일명을 카테고리 이름으로
+        _catname = cat_label.split(" ",1)[-1] if " " in cat_label else cat_label
+        _title = f"{_catname} 사주풀이"
         try:
-            _pdf = make_report_pdf(_title, st.session_state.report,
-                                   dosa_img=_dosa if _os.path.exists(_dosa) else None)
+            _pdf = make_report_pdf(_title, st.session_state.report)
         except Exception:
             _pdf = None
         if _pdf:
             st.download_button("📄 PDF로 저장하기", data=_pdf,
-                               file_name="동인_사주풀이.pdf", mime="application/pdf",
+                               file_name=f"동인_{_catname}.pdf", mime="application/pdf",
                                use_container_width=True)
         st.markdown("<div style='padding:12px 16px;border-radius:12px;margin-top:8px;"
                     "background:rgba(158,43,37,0.12);border:1px solid rgba(197,160,94,0.35)'>"
