@@ -354,6 +354,7 @@ if not os.environ.get("GEMINI_API_KEY"):
     st.stop()
 
 CATS = {
+    "🔮 종합": "overview",
     "📅 택일": "taegil", "🕰 시기운": "timing", "🧭 적성": "career",
     "🩺 건강운": "health", "🪞 성격": "personality", "💞 궁합": "compatibility",
     "🐶 반려동물": "pet",
@@ -377,7 +378,27 @@ if "mode" not in st.session_state:
                     f"원국 <b>{pr['ganji']}</b> · {pr.get('gender','')} 님, 무엇을 볼까요?</div>",
                     unsafe_allow_html=True)
 
-    st.markdown("#### 📋 카테고리 사주풀이  <span style='color:#E8C874;font-size:0.85rem'>990원 / 1회</span>",
+    # 🔮 종합 사주풀이 — 대표(미끼) 상품, 맨 위에 크게
+    st.markdown("#### 🔮 종합 사주풀이  <span style='color:#E8C874;font-size:0.85rem'>990원 · 처음이라면 추천!</span>",
+                unsafe_allow_html=True)
+    ov_img = load_card_image("overview")
+    ov_html = (f"<img class='cc-img' src='{ov_img}'/>" if ov_img
+               else "<div class='cc-img' style='display:flex;align-items:center;"
+                    "justify-content:center;color:#5B6472;font-size:1.6rem'>🔮</div>")
+    st.markdown(
+        f"<div class='cat-card'>{ov_html}<div class='cc-body'>"
+        f"<div class='cc-top'><span class='cc-title'>🔮 내 사주 종합풀이</span>"
+        f"<span class='cc-price'>990원</span></div>"
+        f"<div class='cc-desc'>성격·재물·연애·직업·건강·올해운을 한 번에! "
+        f"내 사주 전체를 훑어보는 맛보기 종합 리포트예요.</div></div></div>",
+        unsafe_allow_html=True)
+    if st.button("🔮 종합 사주풀이 보기 →", key="cat_overview", use_container_width=True):
+        if not _has_profile:
+            st.warning("먼저 위에서 원국을 설정해 주세요.")
+        else:
+            st.session_state.mode = "report"; st.session_state.preset_cat = "overview"; st.rerun()
+
+    st.markdown("#### 📋 주제별 심화 사주풀이  <span style='color:#E8C874;font-size:0.85rem'>990원 / 1회 · 더 자세히</span>",
                 unsafe_allow_html=True)
     cards = [
         ("📅 길일 택일", "이사·시험·계약·개업 등 좋은 날짜 추천", "taegil"),
