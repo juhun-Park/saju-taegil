@@ -3,3 +3,4 @@ google-genai
 lunar_python
 python-dotenv
 Pillow
+fpdf2
