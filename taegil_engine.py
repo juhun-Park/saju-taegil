@@ -162,6 +162,39 @@ def health_tendency(dt, hour=None, minute=0, true_solar=True):
     if not weak: weak=[order[-1][0]]
     return {'분포':dist,'과다오행':strong,'부족오행':weak}
 
+# 건강에 특히 주의할 12신살 (자료집 12신살 질병 기반)
+_HEALTH_RISK_SINSAL = {'겁살','재살','천살','육해','월살'}
+
+def health_timeline(dt, hour=None, minute=0, true_solar=True, years=5):
+    """향후 years년의 건강 주의 시기를 판정.
+    (1) 그 해 세운 오행이 원국 과다오행과 겹치면 → 해당 장부 부담
+    (2) 세운 오행이 원국 부족오행을 채우면 → 건강 보완(좋음)
+    (3) 세운 지지가 원국 일지 기준 흉신살(겁살·재살 등)이면 → 급성/사고 주의"""
+    import datetime as _dt
+    ec=_lunar(dt,hour,minute,true_solar).getEightChar()
+    ilji=ec.getDay()[1]
+    ht=health_tendency(dt,hour,minute,true_solar)
+    over=set(ht['과다오행']); short=set(ht['부족오행'])
+    this_year=_dt.date.today().year
+    rows=[]
+    for k in range(years):
+        yr=this_year+k
+        se=pillars(_dt.date(yr,6,1))['year']   # 그 해 세운 간지
+        se_oh=GAN_OH[se[0]]; se_ji=se[1]
+        flags=[]; level='보통'
+        if se_oh in over:
+            flags.append(f'{se_oh} 기운 겹침(해당 장부 부담)'); level='주의'
+        if se_oh in short:
+            flags.append(f'{se_oh} 보충(건강 보완 흐름)')
+        sinsal=sinsal_of(ilji, se_ji)
+        if sinsal in _HEALTH_RISK_SINSAL:
+            flags.append(f'{sinsal}(급성·사고 주의)'); level='주의'
+        rows.append({'year':yr,'sewoon':se,'오행':se_oh,'신살':sinsal,
+                     'level':level,'flags':flags})
+    caution_years=[r['year'] for r in rows if r['level']=='주의']
+    return {'과다오행':ht['과다오행'],'부족오행':ht['부족오행'],
+            'timeline':rows,'주의연도':caution_years}
+
 def lunar_day(dt): return _lunar(dt).getDay()  # 음력 날짜(손없는날 판정용)
 
 # ---------- 궁합(합충) ----------
