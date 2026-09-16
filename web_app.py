@@ -37,6 +37,64 @@ def send_booking_to_sheet(data):
     except Exception:
         return False
 
+# ---------- 리포트 PDF 생성 (동인 브랜드) ----------
+@st.cache_data(show_spinner=False)
+def _ensure_font():
+    """Noto Sans KR 폰트 확보(없으면 다운로드). 경로 반환."""
+    import os, urllib.request
+    path = "NotoSansKR-Regular.ttf"
+    if os.path.exists(path):
+        return path
+    try:
+        urllib.request.urlretrieve(
+            "https://github.com/google/fonts/raw/main/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf",
+            path)
+        return path
+    except Exception:
+        return None
+
+def make_report_pdf(title, body_text, dosa_img=None):
+    """리포트를 크림 배경 브랜드 PDF(bytes)로. 실패 시 None."""
+    import re, os
+    try:
+        from fpdf import FPDF
+    except Exception:
+        return None
+    font = _ensure_font()
+    if not font or not os.path.exists(font):
+        return None
+    def strip_emoji(s):
+        return re.sub(r'[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF\u2190-\u21FF\u2B00-\u2BFF\uFE0F]', '', s)
+    pdf = FPDF(format="A4"); pdf.add_page()
+    pdf.add_font("KR", "", font); pdf.add_font("KR", "B", font)
+    CREAM=(250,246,238); INK=(35,32,28); GOLD=(150,115,40); RED=(150,43,37)
+    pdf.set_fill_color(*CREAM); pdf.rect(0,0,210,297,'F')
+    pdf.set_fill_color(*RED); pdf.rect(0,0,210,24,'F')
+    pdf.set_xy(12,6); pdf.set_font("KR","B",15); pdf.set_text_color(245,230,200)
+    pdf.cell(0,11,"棟寅  동인 · AI 사주 상담"); pdf.ln(20)
+    if dosa_img and os.path.exists(dosa_img):
+        try: pdf.image(dosa_img, x=162, y=29, w=36, h=36)
+        except Exception: pass
+    pdf.set_xy(12,32); pdf.set_font("KR","B",17); pdf.set_text_color(*RED)
+    pdf.multi_cell(140,9, strip_emoji(title).strip()); pdf.ln(1)
+    pdf.set_draw_color(*GOLD); pdf.set_line_width(0.6)
+    pdf.line(12,pdf.get_y()+1,198,pdf.get_y()+1); pdf.ln(6)
+    for raw in body_text.split("\n"):
+        line=strip_emoji(raw).rstrip()
+        if not line.strip(): pdf.ln(2.5); continue
+        m=re.match(r'^#{1,6}\s*(.+)', line)
+        if pdf.get_y()>265:
+            pdf.add_page(); pdf.set_fill_color(*CREAM); pdf.rect(0,0,210,297,'F')
+        if m:
+            pdf.ln(2); pdf.set_font("KR","B",12.5); pdf.set_text_color(*RED)
+            pdf.set_x(12); pdf.multi_cell(186,7,m.group(1).strip()); pdf.ln(0.5)
+        else:
+            pdf.set_font("KR","",10.8); pdf.set_text_color(*INK)
+            pdf.set_x(12); pdf.multi_cell(186,6.3,line)
+    pdf.set_y(-15); pdf.set_font("KR","",8); pdf.set_text_color(150,140,120)
+    pdf.set_x(12); pdf.cell(0,6,"동인 · AI 사주 상담   |   재미로 보는 명리 콘텐츠")
+    return bytes(pdf.output())
+
 # ---------- 이미지 로더: 한 번만 리사이즈·압축 후 캐시 ----------
 @st.cache_data(show_spinner=False)
 def load_card_image(cat, size=240):
@@ -538,7 +596,20 @@ if st.session_state.mode == "report":
         st.markdown("---")
         st.markdown(st.session_state.report)
         st.markdown("---")
-        st.markdown("<div style='padding:12px 16px;border-radius:12px;"
+        # 📄 PDF 저장
+        import os as _os
+        _dosa = _os.path.join("images", f"dosa_{cat}.png")
+        _title = f"내 사주 {cat_label.split(' ',1)[-1] if ' ' in cat_label else cat_label}풀이"
+        try:
+            _pdf = make_report_pdf(_title, st.session_state.report,
+                                   dosa_img=_dosa if _os.path.exists(_dosa) else None)
+        except Exception:
+            _pdf = None
+        if _pdf:
+            st.download_button("📄 PDF로 저장하기", data=_pdf,
+                               file_name="동인_사주풀이.pdf", mime="application/pdf",
+                               use_container_width=True)
+        st.markdown("<div style='padding:12px 16px;border-radius:12px;margin-top:8px;"
                     "background:rgba(158,43,37,0.12);border:1px solid rgba(197,160,94,0.35)'>"
                     "💬 더 깊이, 이어서 물어보고 싶으신가요?<br>"
                     "<b>대화형 사주풀이(9,900원 · 질문 15회)</b>에서 대화하듯 이어갈 수 있어요.</div>",
